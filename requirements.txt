@@ -1,0 +1,5 @@
+anthropic>=0.40
+langgraph>=0.2
+pypdf>=5.0
+python-dotenv>=1.0
+streamlit>=1.38
