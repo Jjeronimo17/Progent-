@@ -67,8 +67,10 @@ def extraer(estado: EstadoPerfil) -> EstadoPerfil:
     )
 
     bloques = [b.text for b in respuesta.content if b.type == "text"]
+    errores = list(estado.get("errores", []))
     if not bloques:
-        return {"errores": ["El modelo no devolvio texto."]}
+        errores.append("El modelo no devolvio texto")
+        return {"errores": errores}
     crudo = "\n".join(bloques).strip()
 
     if crudo.startswith("```"):
@@ -84,7 +86,9 @@ def extraer(estado: EstadoPerfil) -> EstadoPerfil:
     try:
         perfil = json.loads(crudo)
     except json.JSONDecodeError as e:
-        return {"errores": [f"El modelo no devolvio JSON valido: {e}"]}
+        errores = list(estado.get("errores", []))
+        errores.append(f"El modelo no devolvio JSON valido: {e}")
+        return {"errores": errores}
 
     return {"perfil": perfil}
 
@@ -101,8 +105,7 @@ def validar(estado: EstadoPerfil) -> EstadoPerfil:
 
     perfil = estado.get("perfil", {})
     faltantes = [c for c in CLAVES if c not in perfil]
-
-    errores = []
+    errores = list(estado.get("errores", []))
     if faltantes:
         errores.append("Faltan claves en la respuesta: " + ", ".join(faltantes))
     if not perfil.get("nombre_completo"):
