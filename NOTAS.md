@@ -236,4 +236,40 @@ que hace: creamos dos varibles (inicio y fin). Inicio la inicializamos con la pr
 porque esta aqui: Son nuestros limitadores de la respuesta, de esta manera tenemos el indice en el que inicio la respuesta y el indice en el que termina la respuesta
 
 ### Linea 83: if inicio != -1 and fin != -1:
-que hace:
+que hace: Verifica que si encontrara un inicio y un final, la funcion find devuelve -1 si no encuentra lo que busca, por eso usamos el operador "!="
+porque esta aqui: Es necesario para lo que viene, donde limitamos la extension del documento a unicamente lo que este contemplado entre las
+llaves del formato JSON
+
+### Linea 84: crudo = crudo[inicio : fin + 1]
+que hace: limita la extension de crudo, [inicio : fin + 1] los dos puntos son de slice, basicamente crudo va a ir desde el inicio ( la primer llave abriendo) hasta el final(la ultima llave cerrando), el + 1 es porque el limite derecho no se toma, es decir si fuera desde inicio a fin estariamos tomando una posicion antes del fin real y no estariamos incluyendo la llave que cierra
+
+### Linea 86: try:
+que hace: try nos permite ejecutar un codigo riesoso que es probable que falle
+porque esta aqui: Porque lo siguiente que vamos a hacer es convertir el texto crudo en formato JSON en un objeto en python, sin embargo si
+crudo no esta en formato JSON ese load va a fallar, por eso lo hacemos con un try para que si falla no rompa el codigo
+
+### Linea 87: perfil = json.loads(crudo)
+que hace: Creamos un diccionario en base al texto crudo y lo almacenamos en la variable perfil
+porque esta aqui: Porque el texto crudo son todos los datos que el
+
+### Linea 88: except json.JSONDecodeError as e:
+que hace: El except captura y maneja una exepcion, en este caso nuestra exepcion es que el texto no este en formato JSON, guardamos esa exepcion en una variable llamada e
+porque esta aqui: Dado el caso que si falle el json.loads agarramos esa exepcion con nuestro except(catch) y lo siguiente es lo que pasa si agarramos la exepcion
+
+### Linea 89: errores = list(estado.get("errores", []))
+que hace: Crea una copia de la lista presente en el diccionario de estados. "errores" es el nombre de la llave presente en el diccionario
+original, "[]". Es lo que pasaria si no encontrara esa llave, en nuestro caso siempre la va a encontrar porque cuando se llama a el grafo
+se le pasa la variable desde el inicio lo que inicializa la llave con una lista vacia por defecto. Pero es seguridad por si en algun momento
+se cambia la forma en la que se llama el grafo.
+
+### Linea 90: errores.append(f"El modelo no devolvio JSON valido: {e}")
+que hace: Empujamos al final de la lista el error que salio en este caso, el modelo no devolvio un texto con formato JSON
+porque esta aqui: de esta manera guardamos el error que sucedio {e} da informacion detallada de porque fallo.
+
+### linea 91: return {"errores": errores}
+que hace: Devolvemos un diccionario con la llave "errores" que contiene la lista con el error que agregamos, en este caso el fallo del formato JSON
+porque esta aqui: los nodos siempre tienen que devolver algo, en este caso devuelve el error que encontramos
+
+### Linea 93: return {"perfil": perfil}
+que hace: Si la linea del try funciono sin ningun problema nunca entramos al except
+porque esta aqui: esto es lo que pasa si nunca entramos al except, si la linea del try funciona correctamente entonces saltamos directamente aca, retornamos un diccionario con la llave "perfil" y guardamos el diccionario con los datos de perfil extraidos del texto crudo
