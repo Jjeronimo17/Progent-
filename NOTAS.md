@@ -29,7 +29,7 @@ Esto son solo comentarios al editor, no afecta a python en tiempo de ejecucion.
 Porque esta aqui: Supongo que es porque los JSON tienen datos de todo tipo.
 
 ### Linea 14 : import anthropic
-que hace: Supongo que es la que permite importar la consola de Anthropic para poder usar sus modelos
+que hace: Supongo que es la que permite importar la libreria de cliente de Anthropic que hace las peticiones a los modelos
 que hace aqui: Lo necesitamos porque nuestro agente utiliza modelos de Anthropic
 
 
@@ -66,8 +66,7 @@ porque esta aqui: Lo necesitamos para cargar la API KEY y el modelo que usara el
 que hace: Carga el modelo que esta en el .env a python y lo guarda en la variable MODELO, si no existiera en el .env cargaria
 como modelo por defecto opus-5
 porque esta aqui: Lo necesitamos para poder procesar los CV'S, extraer la informacion y en general todo lo relacionado con el agente
-? no entiendo: Antes pensaba que os no se usaba para nada, pero veo que se usa aca, no entiendo porque lo usamos para en este caso
-cargar un archivo
+
 
 ### Linea 23: cliente = anthropic.Anthropic()
 que hace: Cargamos nuestra API key y la guardamos en la variable cliente
@@ -96,8 +95,7 @@ porque esta aqui: Es donde guardaremos toda la informacion del perfil, como pued
 
 ### Linea 33: errores :list[str]
 que hace: creamos una lista llamada errores, :list[str] nos indica que los datos de la lista seran de tipo string
-porque esta aqui:esto nos permite saber que errores entraron a cada nodo y que errores
-salieron de cada nodo, estos errores se los podemos comunicar mas adelante al usuario si es necesario
+porque esta aqui: Es una lista que se va acumulando y que la interfaz le muestra al usuario
 
 ### Linea 39: def leer_pdf(estado: EstadoPerfil) -> EstadoPerfil
 que hace: definimos nuestro primer nodo que sera donde saquemos el texto del PDF, recibe un estado de tipo EstadoPerfil y devuelve
@@ -273,3 +271,101 @@ porque esta aqui: los nodos siempre tienen que devolver algo, en este caso devue
 ### Linea 93: return {"perfil": perfil}
 que hace: Si la linea del try funciono sin ningun problema nunca entramos al except
 porque esta aqui: esto es lo que pasa si nunca entramos al except, si la linea del try funciona correctamente entonces saltamos directamente aca, retornamos un diccionario con la llave "perfil" y guardamos el diccionario con los datos de perfil extraidos del texto crudo
+
+### linea 99: CLAVES = ["nombre_completo", "contacto", "experiencia", "educacion", "habilidades"]
+que hace: en CLAVES almacenamos los nombres con los cuales accedemos a valores dentro de un diccionario
+porque esta aqui: porque son las llaves de nuestro diccionario, cada llave contiene su valor correspondiente, nombre_completo contiene el nombre de la persona extraido del CV
+
+### Linea 102: def validar(estado: EstadoPerfil) -> EstadoPerfil:
+que hace: definimos la funcion validar que recibe un estado de tipo EstadoPerfil y devuelve un diccionario del mismo tipo
+porque esta aqui: validar es la funcion que nos permite rectificar que el JSON si quedara con la forma adecuada
+
+### Linea 103: if estado.get("errores"):
+que hace: consultamos en el estado la el valor de la llave "errores" el cual es una lista, si la lista no esta vacia entramos al cuerpo del if
+porque esta aqui: nuevamente porque si hay errores no debemos seguir con el proceso y simplemente cortar devolviendo un diccionario vacio
+
+### Linea 104: return {}
+que hace: aca es donde retornamos el diccionario vacio dado el caso de que la lista no este vacia
+porque esta aqui: tenemos que cortar si encontramos errores en la lista contenida en la llave "errores"
+
+### Linea 106: perfil = estado.get("perfil", {})
+que hace: guardamos en perfil el diccionario de perfil, si no encontramos nada guardamos automaticamente un diccionario vacio
+porque esta aqui: Es necesario porque sobre este es que vamos a hacer las verificaciones para saber si quedo en el formato adecuado
+
+### Linea 107: faltantes = [c for c in CLAVES if c not in perfil]
+que hace: Recorre CLAVES y busca las CLAVES que no esten en perfil, si no existe alguna faltantes se llena con esas, si todas estan en CLAVES y en perfil quiere decir que no falto nada y faltantes queda vacia
+porque esta aqui: necesitamos saber que CLAVES o campos faltaron en la extraccion que hizo el agente del perfil, y eso es lo que guardamos en faltantes
+
+### Linea 108: errores = list(estado.get("errores", []))
+que hace: Crea una copia de la lista presente en el diccionario de estados. "errores" es el nombre de la llave presente en el diccionario
+original, "[]". Es lo que pasaria si no encontrara esa llave, en nuestro caso siempre la va a encontrar porque cuando se llama a el grafo
+se le pasa la variable desde el inicio lo que inicializa la llave con una lista vacia por defecto. Pero es seguridad por si en algun momento
+se cambia la forma en la que se llama el grafo.
+
+### Linea 109: if faltantes:
+que hace: verifica si en faltantes efectivamente hay CLAVES FALTANTES, si NO esta vacia entra a la condicion del if
+porque esta aqui: si hay claves faltantes quiere decir que la extraccion no se realizo de la mejor manera
+
+### Linea 110: errores.append("Faltan claves en la respuesta: " + ", ".join(faltantes))
+que hace: empuja el mensaje de error a la lista vacia que guardamos previamente en errores
+porque esta aqui: Necesitamos indicar el error que sucedio, si faltan CLAVES la extraccion no fue del todo correcta.
+
+### Linea 111: if not perfil.get("nombre_completo"):
+que hace: verifica si la llave "nombre_completo" esta vacia en el diccionario de perfil, si lo esta entra en la condicion
+porque esta aqui: si la llave esta vacia quiere decir que el agente no fue capaz de identificar el nombre en el CV
+
+### Linea 112: errores.append("No se pudo identificar el nombre en la hoja de vida.")
+que hace: empuja el error detectado en este caso: no se pudo identificar el nombre en la hoja de vida
+porque esta aqui: porque si no se identifico el nombre en la hoja de vida es un claro error del que hay que llevar registro
+
+### Linea 114: return {"errores": errores}
+que hace: devuelve la lista con todos los errores que se añadieran en este nodo
+porque esta aqui: todos los nodos deben devolver algo, este es solo un nodo de verificacion, si existen errores debe devolver todos los errores, si no existe ninguno devuelve una lista vacia
+
+### Linea 120: def construir_grafo():
+que hace: definimos la funcion que va a construir el grafo con todos los nodos
+porque esta aqui: la arquitectura agentica en LangGraph se basa precisamente en un grafo con nodos
+
+### Linea 121: g = StateGraph(EstadoPerfil)
+que hace: le pasamos a LangGraph con la forma de estado que va a trabajar, esa forma es la que nosotros determinamos
+porque esta aqui: porque LangGraph debe saber como es la forma de estado que han usado los nodos
+
+### Linea 122 - 124: g.add_node("leer_pdf", leer_pdf), g.add_node("extraer", extraer), g.add_node("validar", validar):
+que hacen: Añadimos a nuestro grafo todos los nodos que creamos previamente
+porque esta aqui: Necesario completamente para el desarrollo de la arquitectura en LangGraph, el grado debe tener nodos y esos nodos son los que creamos antes
+
+### Linea 126: g.set_entry_point("leer_pdf")
+que hace: determinamos el punto donde va a iniciar el recorrido de nuestro grafo, en este caso leyendo el pdf
+porque esta aqui: Tenemos que determinar donde va a iniciar el grafo, en este caso inicia en leer pdf, porque para poder cargar un CV necesitamos primero extraerlo de el PDF que lo contiene
+
+### Linea 127 - 129: g.add_edge("leer_pdf", "extraer"), g.add_edge("extraer", "validar"), g.add_edge("validar", END):
+que hace: add_edeg es lo que añade las aristas de un nodo a otro (conecta nodos), en el primero conectamos el nodo leer_pdf a extraer, despues extraer lo conectamos a validar y validar lo conectamos a END que es el fin del grafo
+porque esta aqui: Describe el "Flujo" del grafo, es decir aca es donde determinamos como se conectan los nodos y que sigue despues de cada nodo
+
+### Linea 131: return g.compile():
+que hace: "Compila" el grafo, es decir, cierra la construccion del mismo
+porque esta aqui: Porque si no hacemos esto, nos quedamos en la construccion del grafo, pero compile toma todo esto, valida si todo es correcto y crea un objeto
+
+### Linea 134: grafo = construir_grafo():
+que hace: llama a la funcion que crea el grafo y devuelve un objeto del grafo y lo guarda en una variable llamada grafo
+porque esta aqui: porque construir_grafo devuelve un objeto y ese objeto debemos guardarlo en algun lado
+
+### Linea 137: def procesar_cv(pdf_bytes: bytes) -> EstadoPerfil:
+que hace: define una funcion procesar_cv que recibe como argumento los bytes del pdf y devuelve un EstadoPerfil
+porque esta aqui: Es el punto de entrada del programa desde la interfaz
+
+### Linea 139: return grafo.invoke({"pdf_bytes": pdf_bytes, "errores": []})
+que hace: ejecuta el grafo compilado y le pasa como argumento los bytes del pdf que son almacenados en la llave del diccionario "pdf_bytes", tambien inicializa la lista de errores contemplada en la llave "errores" como vacia
+porque esta aqui: Esto es lo que ejecuta propiamente el grafo compilado, pasa como argumentos los bytes del pdf que leer_pdf (el punto de entrada del grafo) va a utilizar, (el argumento de lee_pdf es un estado de EstadoPerfil) y los bytes almacenados en "pdf_bytes" lo son
+
+### linea 142: if __name__ == "__main__":
+que hace: Python le asigna a cada archivo una variable __name__ y si el archivo se ejecuta directamente esa variable es __main__
+porque esta aqui: Porque app.py va a importar procesar_cv y esto lo que hace es evitar que streamlit intente leer el PDF
+
+### Linea 143: import sys
+que hace: es la libreria que da acceso a cosas del interpreste y del entorno de ejecucion
+porque esta aqui: para poder leer el nombre del archivo que se escribe en la terminal
+
+### Linea 145 - 149:
+que hacen: Todas estas lineas son necesarias si vamos a correr directamente desde la terminal, si vamos a cargar el archivo desde la terminal el conjunto de estas lineas es lo que nos permite obtener los bytes del PDF
+porque esta aqui: Permite correr el programa sin necesidad de montar streamlit
