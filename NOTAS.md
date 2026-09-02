@@ -185,4 +185,55 @@ format es en el encargado de rellenar ese hueco entre llaves automaticamente, ut
 porque esta aqui: Esta es la estructura completa de como la API recibe el mensaje, la API no recuerda nada, asi que si quisieramos usar las respuestas que esta dio deberiamos hacer lo mismo pero marcando el "role": "assistant"
 
 ### Linea 69:  bloques = [b.text for b in respuesta.content if b.type == "text"]
+que hace: Toma el texto de cada bloque b en la respuesta del modelo, pero solo de los bloques que tengan de tipo "text" , .content en este contexto es un atributo del objeto que permite obtener la respuesta del modelo en bloques, por eso hay que recorrerla
+porque esta aqui: Porque en este apartado es donde comenzamos a estructurar la respuesta del modelo.
+
+### Linea 70: errores = list(estado.get("errores", []))
+que hace: Crea una copia de la lista presente en el diccionario de estados. "errores" es el nombre de la llave presente en el diccionario
+original, "[]". Es lo que pasaria si no encontrara esa llave, en nuestro caso siempre la va a encontrar porque cuando se llama a el grafo
+se le pasa la variable desde el inicio lo que inicializa la llave con una lista vacia por defecto. Pero es seguridad por si en algun momento
+se cambia la forma en la que se llama el grafo.
+
+### Linea 71: if not bloques:
+que hace: si bloques no tiene contenido entra al if, en este caso si bloques no tiene contenido hay un error, por eso dentro del if nos encargaremos de señalar ese error y hace return
+porque esta aqui: En bloques debe estar la respuesta del modelo, si no hay respuesta del modelo algo salio mal y no se puede continuar
+
+### Linea 72: errores.append("El modelo no devolvio texto.")
+que hace: empujamos al final de la lista de errores el error que sucedio en este caso, si bloques es vacio el modelo no dio respuesta asi que eso es lo que reportamos
+porque esta aqui: Porque una vez encontramos un error debemos meterlo a la lista, siempre hacemos una copia porque nunca modificamos la lista original de errores, cada nodo reporta los errores que encuentra
+
+### Linea 73: return {"errores": errores}
+que hace: Retornamos cortando la funcion y devolviendo un diccionario con la llave "Errores" y de contenido el presente en la lista que copiamos anteriormente
+porque esta aqui: necesitamos hacer return porque si no el codigo si señalaria el error pero seguiria ejecutandose y ese no es el comportamiento que deberia tener
+
+### Linea 74: crudo = "\n".join(bloques).strip()
+que hace: Juntamos toda la respuesta del modelo en un texto solo, eliminando los espacios del inicio y del final
+porque esta aqui: Actualmente tenemos la respuesta del modelo separada en bloques, necesitamso unirlos y eliminar los espacios al inicio y al final para poder procesar mejor la respuesta del modelo y despues formatear mejor el archivo
+
+### Linea 76: if crudo.startswith("```"):
+que hace: Es una guarda por si el modelo envuelve el JSON en un bloque de codigo MD, en formato MD crudo comenzaria con esas comillas y entraria al if
+porque esta aqui: porque si lo entrega en MD cuando hagamos json.loads este fallaria, necesitamos asegurarnos de que siempre estemos en formato JSON
+
+### linea 77: crudo = crudo.split("```")[1]
+que hace: Partimos crudo cada vez que encuentre esas comillas, en este caso tendriamos algo asi: "``` json ........ ```" El primer corte nos dejaria ["", "json ........ ```"] y el segundo corte nos dejaria: ["", json ........, ""]
+el indice uno es para coger justamente la parte del centro que es la informacion real que nos conviene
+porque esta aqui: Esto es lo que nos permite saltarnos la envoltura del formato MD, recordemos que todo lo trabajamos siempre en JSON
+
+### Linea 78: if crudo.startswith("json"):
+que hace: Ahora revisamos si crudo comienza con json, si lo hace entramos al if.
+porque esta aqui: El motivo de esto es que la etiqueta de json no nos sirve, un formato real de JSON empieza con {} y en este caso empieza con una palabra
+
+### Linea 79: crudo = crudo[4:]
+que hace: Crudo comienza apartir del 4 caracter, que en este caso seria justo despues de terminar la palabra json
+porque esta aqui: Porque de esta manera saltamos la etiqueta innecesaria y nos queda en el formato que buscamos
+
+### Linea 80: crudo = crudo.strip()
+que hace: Nos aseguramos de eliminar espacios al inicio y final de crudo
+porque esta aqui: Para evitarnos problema de longitudes
+
+### Linea 82: inicio, fin = crudo.find("{"), crudo.rfind("}")
+que hace: creamos dos varibles (inicio y fin). Inicio la inicializamos con la primer aparacion de { en la respuesta cruda, y fin lo inicializamos con la ultima aparicion de } en la respuesta cruda
+porque esta aqui: Son nuestros limitadores de la respuesta, de esta manera tenemos el indice en el que inicio la respuesta y el indice en el que termina la respuesta
+
+### Linea 83: if inicio != -1 and fin != -1:
 que hace:
