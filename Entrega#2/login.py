@@ -2,11 +2,12 @@ import mysql.connector
 from mysql.connector import Error
 import secrets
 import hashlib
+import re
 
 CANTIDAD_ITERACIONES = 600000
 
 
-usuario = ""
+correo = ""
 passwordUser = ""
 
 
@@ -26,8 +27,8 @@ def hashing(passwordUser):
     return passwordHashed, salt
 
 
-def guardarDataBase(usuario, passwordUser):
-    usuario = input("Ingrese un nombre de usuario: ")
+def guardarDataBase(correo, passwordUser):
+    correo = input("Ingrese un nombre de usuario: ")
     passwordUser = input("Ingrese una contraseña: ")
     passwordHash, salt = hashing(passwordUser)
     try:
@@ -40,16 +41,20 @@ def guardarDataBase(usuario, passwordUser):
         )
         if conexion.is_connected():
             cursor = conexion.cursor()
-            atributos = (usuario, "")
+            atributos = (correo, "")
             resultado = cursor.callproc("verificar_usuario", atributos)
             verificacion = resultado[1]
+            miRegex = r"^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$"
+            resultado = re.search(miRegex, correo)
             if verificacion == "Usuario No Disponible":
-                print("Usuario no disponible, ingrese otro usuario")
+                print("Correo asociado a una cuenta, use otro")
+            elif not (resultado):
+                print("Ingrese una direccion de correo valida")
             else:
                 sql_insertar = (
-                    "INSERT INTO usuarios(Usuario, Salt, Hashed) VALUES (%s, %s, %s)"
+                    "INSERT INTO usuarios(Correos, Salt, Hashed) VALUES (%s, %s, %s)"
                 )
-                datos = (usuario, salt, passwordHash)
+                datos = (correo, salt, passwordHash)
                 cursor.execute(sql_insertar, datos)
                 conexion.commit()
                 print("Usuario Creado con exito")
@@ -64,4 +69,4 @@ def guardarDataBase(usuario, passwordUser):
             print("Conexion Cerrada")
 
 
-guardarDataBase(usuario, passwordUser)
+guardarDataBase(correo, passwordUser)
