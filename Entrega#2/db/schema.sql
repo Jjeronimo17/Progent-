@@ -27,6 +27,9 @@ CREATE TABLE IF NOT EXISTS `Progent_Usuarios`.`Usuarios` (
   PRIMARY KEY (`Correos`))
 ENGINE = InnoDB
 DEFAULT CHARACTER SET = utf8mb3;
+ALTER TABLE Usuarios
+ADD CONSTRAINT formato_correo
+CHECK(REGEXP_LIKE(Correos, '^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$'));
 
 
 -- -----------------------------------------------------
@@ -48,9 +51,6 @@ CREATE TABLE IF NOT EXISTS `Progent_Usuarios`.`informacion_usuarios` (
     ON DELETE NO ACTION
     ON UPDATE NO ACTION)
 ENGINE = InnoDB;
-
-ADD CONSTRAINT formato_correo
-CHECK(REGEXP_LIKE(Correos, '^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$'));
 
 USE `Progent_Usuarios` ;
 
