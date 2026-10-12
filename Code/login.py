@@ -1,8 +1,13 @@
-import mysql.connector
-from mysql.connector import Error
-import secrets
 import hashlib
+import os
 import re
+import secrets
+
+import mysql.connector
+from dotenv import load_dotenv
+from mysql.connector import Error
+
+load_dotenv()
 
 CANTIDAD_ITERACIONES = 600000
 
@@ -28,11 +33,11 @@ def guardarDataBase(correo, passwordUser):
     passwordHash, salt = hashing(passwordUser)
     try:
         conexion = mysql.connector.connect(
-            host="localhost",
-            port=3306,
-            database="progent_usuarios",
-            user="root",
-            password="20081996Jeronimo13",
+            host=os.getenv("DB_HOST"),
+            port=os.getenv("DB_PORT"),
+            database=os.getenv("DB_NAME"),
+            user=os.getenv("DB_USER"),
+            password=os.getenv("DB_PASSWORD"),
         )
         if conexion.is_connected():
             cursor = conexion.cursor()
@@ -68,11 +73,11 @@ def iniciarSesion(correo, passwordUser):
     passwordCorrecto = False
     try:
         conexion = mysql.connector.connect(
-            host="localhost",
-            port=3306,
-            database="progent_usuarios",
-            user="root",
-            password="20081996Jeronimo13",
+            host=os.getenv("DB_HOST"),
+            port=os.getenv("DB_PORT"),
+            database=os.getenv("DB_NAME"),
+            user=os.getenv("DB_USER"),
+            password=os.getenv("DB_PASSWORD"),
         )
         if conexion.is_connected():
             cursor = conexion.cursor()

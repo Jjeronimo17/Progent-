@@ -2,6 +2,7 @@ import streamlit as st
 
 from LoginFront import mostrar_pantalla_login
 from CargarCV import mostrar_pantalla_perfil
+from DatosUsuarioFront import mostrar_pantalla_datos_usuario
 
 
 st.set_page_config(
