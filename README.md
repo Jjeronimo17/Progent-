@@ -128,7 +128,7 @@ compatibilidad perfil–vacante y priorización inteligente de procesos.
 
 ```
 Progent-/
-├── src/                ← código de la aplicación (backend y frontend)
+├── Code/                ← código de la aplicación (backend y frontend)
 ├── db/                 ← schema.sql y modelo EER (.mwb)
 ├── docs/               ← entregables, diagramas y documentación
 ├── .env.example        ← plantilla de variables de entorno
