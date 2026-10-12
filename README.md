@@ -182,7 +182,7 @@ conexión a **tu** MySQL local (cada integrante usa su propia contraseña).
 **4. Ejecuta la aplicación** desde la raíz del repositorio
 
 ```bash
-streamlit run src/main.py
+streamlit run Code/main.py
 ```
 
 > [!WARNING]
