@@ -124,21 +124,34 @@ compatibilidad perfil–vacante y priorización inteligente de procesos.
 
 ---
 
-## Cómo ejecutarlo
+## Estructura del repositorio
 
-> [!NOTE]
-> El código de cada sprint vive en su propia carpeta. Lo siguiente corresponde a la
-> entrega actual.
-
-**1. Ubícate en la carpeta de la entrega**
-
-```bash
-cd Entrega#2
+```
+Progent-/
+├── src/                ← código de la aplicación (backend y frontend)
+├── db/                 ← schema.sql y modelo EER (.mwb)
+├── docs/               ← entregables, diagramas y documentación
+├── .env.example        ← plantilla de variables de entorno
+├── requirements.txt
+└── README.md
 ```
 
-**2. Crea el entorno virtual e instala las dependencias**
+> [!NOTE]
+> Las entregas de cada sprint no viven en carpetas separadas: se marcan con **tags**
+> de git (`entrega-1`, `entrega-2`, …) y se publican en la sección **Releases** del
+> repositorio. Para ver el código exactamente como se entregó, abre el release
+> correspondiente.
+
+---
+
+## Cómo ejecutarlo
+
+**1. Clona el repositorio y crea el entorno virtual**
 
 ```bash
+git clone https://github.com/Jjeronimo17/Progent-.git
+cd Progent-
+
 python -m venv venv
 
 # Windows
@@ -149,24 +162,129 @@ source venv/bin/activate
 pip install -r requirements.txt
 ```
 
-**3. Configura la clave de API**
+**2. Instala MySQL Server 8.0** y crea la base de datos ejecutando el script del esquema,
+ya sea desde MySQL Workbench o desde la terminal:
+
+```bash
+mysql -u root -p < db/schema.sql
+```
+
+**3. Configura las variables de entorno**
 
 ```bash
 copy .env.example .env      # Windows
 cp .env.example .env        # macOS / Linux
 ```
 
-Abre el `.env` y pega tu clave de Anthropic.
+Abre el `.env` y completa los valores: tu clave de Anthropic y los datos de
+conexión a **tu** MySQL local (cada integrante usa su propia contraseña).
 
-**4. Ejecuta la aplicación**
+**4. Ejecuta la aplicación** desde la raíz del repositorio
 
 ```bash
-streamlit run main.py
+streamlit run src/main.py
 ```
 
 > [!WARNING]
-> La clave de API va en `.env`, que está listado en `.gitignore`. **Nunca** la subas
-> al repositorio. Si se filtra, revócala de inmediato desde la consola de Anthropic.
+> El `.env` está listado en `.gitignore`. **Nunca** subas claves ni contraseñas al
+> repositorio: el repo es público. Si alguna se filtra, cámbiala de inmediato
+> (borrarla en un commit posterior no basta, queda en el historial).
+
+---
+
+## Flujo de trabajo del equipo
+
+> [!IMPORTANT]
+> La rama `main` está **protegida**: no se puede hacer push directo a ella. Todo
+> cambio — código, base de datos o documentación — entra por **pull request** con
+> al menos **una aprobación** de otro integrante. Así `main` siempre funciona.
+
+### Paso a paso para cada cambio
+
+**1. Parte de `main` actualizado**
+
+```bash
+git switch main
+git pull
+```
+
+**2. Crea una rama para tu cambio**
+
+```bash
+git switch -c feature/editar-perfil
+```
+
+| Prefijo | Para qué |
+|---|---|
+| `feature/` | Funcionalidad nueva |
+| `fix/` | Corrección de un error |
+| `docs/` | Cambios en documentación |
+
+Una rama por historia o arreglo. Ramas pequeñas se revisan rápido y generan menos conflictos.
+
+**3. Trabaja y haz commits en tu rama**
+
+```bash
+git add -A
+git commit -m "Agrega la edición de datos de contacto"
+```
+
+Corre `git status` antes de cada commit y verifica que **no** aparezcan `.env`,
+`venv/` ni `__pycache__/`.
+
+**4. Sube la rama**
+
+```bash
+git push -u origin feature/editar-perfil   # la primera vez
+git push                                    # las siguientes
+```
+
+**5. Abre la pull request** en GitHub con el botón **Compare & pull request**.
+Explica qué cambia y por qué. Si resuelve una historia del backlog, escribe
+`Closes #<número>` en la descripción: al fusionarla, el issue se cierra solo.
+
+**6. Pide revisión** asignando a un compañero en **Reviewers**.
+
+**7. Fusiona cuando tengas la aprobación** con **Squash and merge** y luego
+**Delete branch**.
+
+**8. Limpia en tu equipo**
+
+```bash
+git switch main
+git pull
+git branch -d feature/editar-perfil
+```
+
+### Si `main` avanzó mientras trabajabas
+
+Trae los cambios a tu rama antes de abrir o actualizar la pull request:
+
+```bash
+git pull origin main
+```
+
+Si git reporta un conflicto, resuélvelo en los archivos marcados, haz commit y sigue.
+Hacerlo seguido evita conflictos grandes.
+
+### Al revisar la pull request de alguien
+
+- Lee los cambios en la pestaña **Files changed**.
+- Si el cambio toca el login, la base de datos o algo compartido, **baja la rama y corre la app**:
+  `git fetch` y luego `git switch <nombre-de-la-rama>`.
+- Verifica que no se suban credenciales ni archivos generados.
+- **Approve** si todo está bien, o **Request changes** explicando qué ajustar.
+
+### Cambios en la base de datos
+
+Cualquier cambio de estructura (tablas, columnas, procedimientos, restricciones) debe
+quedar reflejado en `db/schema.sql` **en la misma pull request** que el código que
+lo usa. Si el esquema del repositorio no coincide con el código, los demás no podrán
+levantar el proyecto.
+
+> [!NOTE]
+> El coordinador técnico conserva un permiso de excepción sobre `main` para
+> emergencias. No es el camino normal: sus cambios también van por pull request.
 
 ---
 
@@ -177,6 +295,7 @@ streamlit run main.py
 | Orquestación de agentes | LangGraph |
 | Modelo de lenguaje | API de Anthropic |
 | Interfaz | Streamlit |
+| Base de datos | MySQL 8.0 |
 | Lectura de PDF | pypdf |
 | Trazabilidad | LangSmith |
 | Gestión del backlog | GitHub Projects |
