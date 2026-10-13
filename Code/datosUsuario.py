@@ -1,4 +1,5 @@
 import os
+
 import login
 import mysql.connector
 from dotenv import load_dotenv
@@ -13,8 +14,6 @@ def añadirDatos(
     edad,
     telefono,
     correo_contacto,
-    experiencia,
-    educacion,
     titulos,
     ubicacion,
     ocupacion,
@@ -84,7 +83,16 @@ def añadirExperiencia(
         )
         if conexion.is_connected():
             cursor = conexion.cursor()
-            añadirExp = "INSERT INTO Experiencia VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)"
+            verificarFecha = "SELECT TIMESTAMPDIFF(MONTH, %s, COALESCE(%s, CURDATE()))"
+            datos = (fecha_inicio, fecha_finalizacion)
+            cursor.execute(verificarFecha, datos)
+            resultado = cursor.fetchone()
+            if resultado[0] < 0:
+                return (
+                    False,
+                    "La fecha de finalizacion no puede ser anterior a la fecha de inicio",
+                )
+            añadirExp = "INSERT INTO Experiencia(Correos, Nombre_empresa, Sector_industria, Tamaño_empresa, Titulo_puesto, Nivel_seniority, Fecha_inicio, Fecha_finalizacion, Descripcion_funciones, Logros, Habilidades, Ubicacion_empresa, Tipo_contrato, Modalidad_trabajo) VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)"
             valoresAñadir = (
                 correo,
                 nombre_empresa,
@@ -106,6 +114,91 @@ def añadirExperiencia(
             return True, "Experiencia añadida correctamente al perfil"
     except Error as e:
         print(f"Fallo en las operaciones de arriba {e}")
+        return False, "No se pudo añadir la experiencia al perfil, intente de nuevo"
+    finally:
+        if "conexion" in locals() and conexion.is_connected():
+            cursor.close()
+            conexion.close()
+
+
+def añadirEducacion(
+    correo,
+    institucion_educativa,
+    tipo_institucion,
+    titulo_carrera_grado,
+    nivel_educacion,
+    campo_estudio,
+    fecha_inicio,
+    estado_estudio,
+    logros,
+    fecha_final=None,
+):
+    try:
+        conexion = mysql.connector.connect(
+            host=os.getenv("DB_HOST"),
+            port=os.getenv("DB_PORT"),
+            database=os.getenv("DB_NAME"),
+            user=os.getenv("DB_USER"),
+            password=os.getenv("DB_PASSWORD"),
+        )
+        if conexion.is_connected():
+            cursor = conexion.cursor()
+            verificarFecha = "SELECT TIMESTAMPDIFF(MONTH, %s, COALESCE(%s, CURDATE()))"
+            datos = (fecha_inicio, fecha_final)
+            cursor.execute(verificarFecha, datos)
+            resultado = cursor.fetchone()
+            if resultado[0] < 0:
+                return (
+                    False,
+                    "La fecha de finalizacion no puede ser anterior a la de inicio",
+                )
+            añadirEdu = "INSERT INTO Educacion(Correos, Institucion_educativa, Tipo_institucion, Titulo_Carrera_Grado, Nivel_educacion, Campo_estudio, Fecha_inicio, Fecha_final, Estado_estudio, Logros) VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)"
+            parametros = (
+                correo,
+                institucion_educativa,
+                tipo_institucion,
+                titulo_carrera_grado,
+                nivel_educacion,
+                campo_estudio,
+                fecha_inicio,
+                fecha_final,
+                estado_estudio,
+                logros,
+            )
+            cursor.execute(añadirEdu, parametros)
+            conexion.commit()
+            return True, "Se añadio su educacion de manera correcta a su perfil"
+    except Error as e:
+        print(f"Fallo en las operaciones de arriba {e}")
+        return False, "No se pudo añadir la educacion a su perfil, vuelva a intentar"
+    finally:
+        if "conexion" in locals() and conexion.is_connected():
+            cursor.close()
+            conexion.close()
+
+
+def consultarEducacion(correo):
+    try:
+        conexion = mysql.connector.connect(
+            host=os.getenv("DB_HOST"),
+            port=os.getenv("DB_PORT"),
+            database=os.getenv("DB_NAME"),
+            user=os.getenv("DB_USER"),
+            password=os.getenv("DB_PASSWORD"),
+        )
+        if conexion.is_connected():
+            cursor = conexion.cursor()
+            consultarEdu = "SELECT * FROM Educacion WHERE Correos = %s"
+            parametro = (correo,)
+            cursor.execute(consultarEdu, parametro)
+            resultado = cursor.fetchall()
+            return True, resultado
+    except Error as e:
+        print(f"Fallo en las operaciones de arriba {e}")
+        return (
+            False,
+            "No se pudo obtener la educacion añadida a su perfil, vuelva a intentar",
+        )
     finally:
         if "conexion" in locals() and conexion.is_connected():
             cursor.close()
