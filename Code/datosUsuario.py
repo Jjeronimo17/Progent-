@@ -30,15 +30,13 @@ def añadirDatos(
         )
         if conexion.is_connected():
             cursor = conexion.cursor()
-            agregarInfo = "INSERT INTO informacion_usuarios VALUES(%s, %s, %s, %s, %s, %s, %s,%s, %s, %s, %s);"
+            agregarInfo = "INSERT INTO informacion_usuarios VALUES(%s, %s, %s, %s, %s,%s, %s, %s, %s);"
             datos = (
                 correo,
                 nombre,
                 edad,
                 telefono,
                 correo_contacto,
-                experiencia,
-                educacion,
                 titulos,
                 ubicacion,
                 ocupacion,
@@ -54,6 +52,85 @@ def añadirDatos(
         else:
             return (False, "No se pudo completar el llenado de perfil")
 
+    finally:
+        if "conexion" in locals() and conexion.is_connected():
+            cursor.close()
+            conexion.close()
+
+
+def añadirExperiencia(
+    correo,
+    nombre_empresa,
+    sector_industria,
+    tamaño_empresa,
+    titulo_puesto,
+    nivel_seniority,
+    fecha_inicio,
+    descripcion_funciones,
+    logros,
+    habilidades,
+    ubicacion_empresa,
+    tipo_contrato,
+    modalidad_trabajo,
+    fecha_finalizacion=None,
+):
+    try:
+        conexion = mysql.connector.connect(
+            host=os.getenv("DB_HOST"),
+            port=os.getenv("DB_PORT"),
+            database=os.getenv("DB_NAME"),
+            user=os.getenv("DB_USER"),
+            password=os.getenv("DB_PASSWORD"),
+        )
+        if conexion.is_connected():
+            cursor = conexion.cursor()
+            añadirExp = "INSERT INTO Experiencia VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)"
+            valoresAñadir = (
+                correo,
+                nombre_empresa,
+                sector_industria,
+                tamaño_empresa,
+                titulo_puesto,
+                nivel_seniority,
+                fecha_inicio,
+                fecha_finalizacion,
+                descripcion_funciones,
+                logros,
+                habilidades,
+                ubicacion_empresa,
+                tipo_contrato,
+                modalidad_trabajo,
+            )
+            cursor.execute(añadirExp, valoresAñadir)
+            conexion.commit()
+            return True, "Experiencia añadida correctamente al perfil"
+    except Error as e:
+        print(f"Fallo en las operaciones de arriba {e}")
+    finally:
+        if "conexion" in locals() and conexion.is_connected():
+            cursor.close()
+            conexion.close()
+
+
+def consultarExperiencia(correo):
+    try:
+        conexion = mysql.connector.connect(
+            host=os.getenv("DB_HOST"),
+            port=os.getenv("DB_PORT"),
+            database=os.getenv("DB_NAME"),
+            user=os.getenv("DB_USER"),
+            password=os.getenv("DB_PASSWORD"),
+        )
+        if conexion.is_connected():
+            cursor = conexion.cursor()
+            consultarExp = "SELECT * FROM Experiencia WHERE Correos = %s"
+            parametro = (correo,)
+            cursor.execute(consultarExp, parametro)
+            resultado = cursor.fetchall()
+            return True, resultado
+    except Error as e:
+        print(f"Fallo en las operaciones de arriba {e}")
+        return False, "No se pudo cargar la experiencia en el perfil, intente de nuevo"
     finally:
         if "conexion" in locals() and conexion.is_connected():
             cursor.close()
@@ -91,8 +168,6 @@ def actualizarPerfil(
     edad,
     telefono,
     correo_contacto,
-    experiencia,
-    educacion,
     titulos,
     ubicacion,
     ocupacion,
@@ -108,7 +183,7 @@ def actualizarPerfil(
         )
         if conexion.is_connected():
             cursor = conexion.cursor()
-            recuperarValores = "SELECT Nombre, Edad, Telefono, Correo_contacto, Experiencia, Educacion, Titulos, Ubicacion, Ocupacion, Estudios FROM informacion_usuarios WHERE Correos = %s;"
+            recuperarValores = "SELECT Nombre, Edad, Telefono, Correo_contacto, Titulos, Ubicacion, Ocupacion, Estudios FROM informacion_usuarios WHERE Correos = %s;"
             dato = (correo,)
             cursor.execute(recuperarValores, dato)
             resultadoConsulta = cursor.fetchone()
@@ -116,8 +191,6 @@ def actualizarPerfil(
             edadOriginal = resultadoConsulta[1]
             telefonoOriginal = resultadoConsulta[2]
             correo_contactoOriginal = resultadoConsulta[3]
-            experienciaOriginal = resultadoConsulta[4]
-            educacionOriginal = resultadoConsulta[5]
             titulosOriginal = resultadoConsulta[6]
             ubicacionOriginal = resultadoConsulta[7]
             ocupacionOriginal = resultadoConsulta[8]
@@ -149,47 +222,35 @@ def actualizarPerfil(
                 datos4 = (correo_contacto, correo)
                 cursor.execute(consulta4, datos4)
                 Cambios.append("Correo de Contacto")
-            if experiencia != experienciaOriginal:
-                consulta5 = "UPDATE informacion_usuarios SET Experiencia = %s WHERE Correos = %s"
-                datos5 = (experiencia, correo)
-                cursor.execute(consulta5, datos5)
-                Cambios.append("Experiencia")
-            if educacion != educacionOriginal:
-                consulta6 = (
-                    "UPDATE informacion_usuarios SET Educacion = %s WHERE Correos = %s"
-                )
-                datos6 = (educacion, correo)
-                cursor.execute(consulta6, datos6)
-                Cambios.append("Educacion")
             if titulos != titulosOriginal:
-                consulta7 = (
+                consulta5 = (
                     "UPDATE informacion_usuarios SET Titulos = %s WHERE Correos = %s"
                 )
-                datos7 = (titulos, correo)
-                cursor.execute(consulta7, datos7)
+                datos5 = (titulos, correo)
+                cursor.execute(consulta5, datos5)
                 Cambios.append("Titulos")
             if ubicacion != ubicacionOriginal:
-                consulta8 = (
+                consulta6 = (
                     "UPDATE informacion_usuarios SET Ubicacion = %s WHERE Correos = %s"
                 )
-                datos8 = (ubicacion, correo)
-                cursor.execute(consulta8, datos8)
+                datos6 = (ubicacion, correo)
+                cursor.execute(consulta6, datos6)
                 Cambios.append("Ubicacion")
             if ocupacion != ocupacionOriginal:
-                consulta9 = (
+                consulta7 = (
                     "UPDATE informacion_usuarios SET Ocupacion = %s WHERE Correos = %s"
                 )
-                datos9 = (ocupacion, correo)
-                cursor.execute(consulta9, datos9)
+                datos7 = (ocupacion, correo)
+                cursor.execute(consulta7, datos7)
                 Cambios.append("Ocupacion")
             if (estudios == "" and estudiosOriginal != None) or (
                 estudios != "" and estudiosOriginal == None
             ):
-                consulta10 = (
+                consulta8 = (
                     "UPDATE informacion_usuarios SET Estudios = %s WHERE Correos = %s"
                 )
-                datos10 = (estudios, correo)
-                cursor.execute(consulta10, datos10)
+                datos8 = (estudios, correo)
+                cursor.execute(consulta8, datos8)
                 Cambios.append("Estudios")
             conexion.commit()
             if not Cambios:
