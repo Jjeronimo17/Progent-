@@ -53,7 +53,7 @@ ENGINE = InnoDB;
 -- -----------------------------------------------------
 CREATE TABLE IF NOT EXISTS `Progent_Usuarios`.`Experiencia` (
   `ID` INT NOT NULL AUTO_INCREMENT,
-  `Correos` VARCHAR(200) NOT NULL,
+  `Correos_experiencia` VARCHAR(200) NOT NULL,
   `Nombre_empresa` VARCHAR(100) NOT NULL,
   `Sector_industria` VARCHAR(100) NOT NULL,
   `Tamaño_empresa` BIGINT NOT NULL,
@@ -68,10 +68,10 @@ CREATE TABLE IF NOT EXISTS `Progent_Usuarios`.`Experiencia` (
   `Tipo_contrato` VARCHAR(100) NOT NULL,
   `Modalidad_trabajo` ENUM('Hibrido', 'Presencial', 'Virtual') NOT NULL,
   PRIMARY KEY (`ID`),
-  INDEX `Correos_idx` (`Correos` ASC) VISIBLE,
-  CONSTRAINT `Correos`
-    FOREIGN KEY (`Correos`)
-    REFERENCES `Progent_Usuarios`.`informacion_usuarios` (`Correos`)
+  INDEX `Correos_idx` (`Correos_experiencia` ASC) VISIBLE,
+  CONSTRAINT `Correos_experiencia`
+    FOREIGN KEY (`Correos_experiencia`)
+    REFERENCES `Progent_Usuarios`.`Usuarios` (`Correos`)
     ON DELETE CASCADE
     ON UPDATE CASCADE)
 ENGINE = InnoDB;
@@ -82,7 +82,7 @@ ENGINE = InnoDB;
 -- -----------------------------------------------------
 CREATE TABLE IF NOT EXISTS `Progent_Usuarios`.`Educacion` (
   `Id_educacion` INT NOT NULL AUTO_INCREMENT,
-  `Correos` VARCHAR(200) NOT NULL,
+  `Correos_educacion` VARCHAR(200) NOT NULL,
   `Institucion_educativa` VARCHAR(100) NOT NULL,
   `Tipo_institucion` VARCHAR(250) NOT NULL,
   `Titulo_Carrera_Grado` VARCHAR(200) NOT NULL,
@@ -93,10 +93,10 @@ CREATE TABLE IF NOT EXISTS `Progent_Usuarios`.`Educacion` (
   `Estado_estudio` ENUM('Cursando', 'Graduado', 'Aplazado', 'Incompleto') NOT NULL,
   `Logros` LONGTEXT NOT NULL,
   PRIMARY KEY (`Id_educacion`),
-  INDEX `Correos_idx` (`Correos` ASC) VISIBLE,
-  CONSTRAINT `Correos`
-    FOREIGN KEY (`Correos`)
-    REFERENCES `Progent_Usuarios`.`informacion_usuarios` (`Correos`)
+  INDEX `Correos_idx` (`Correos_educacion` ASC) VISIBLE,
+  CONSTRAINT `Correos_educacion`
+    FOREIGN KEY (`Correos_educacion`)
+    REFERENCES `Progent_Usuarios`.`Usuarios` (`Correos`)
     ON DELETE CASCADE
     ON UPDATE CASCADE)
 ENGINE = InnoDB;
