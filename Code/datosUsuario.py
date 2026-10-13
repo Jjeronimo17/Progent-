@@ -92,7 +92,7 @@ def añadirExperiencia(
                     False,
                     "La fecha de finalizacion no puede ser anterior a la fecha de inicio",
                 )
-            añadirExp = "INSERT INTO Experiencia(Correos, Nombre_empresa, Sector_industria, Tamaño_empresa, Titulo_puesto, Nivel_seniority, Fecha_inicio, Fecha_finalizacion, Descripcion_funciones, Logros, Habilidades, Ubicacion_empresa, Tipo_contrato, Modalidad_trabajo) VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)"
+            añadirExp = "INSERT INTO Experiencia(Correos_experiencia, Nombre_empresa, Sector_industria, Tamaño_empresa, Titulo_puesto, Nivel_seniority, Fecha_inicio, Fecha_finalizacion, Descripcion_funciones, Logros, Habilidades, Ubicacion_empresa, Tipo_contrato, Modalidad_trabajo) VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)"
             valoresAñadir = (
                 correo,
                 nombre_empresa,
@@ -152,7 +152,7 @@ def añadirEducacion(
                     False,
                     "La fecha de finalizacion no puede ser anterior a la de inicio",
                 )
-            añadirEdu = "INSERT INTO Educacion(Correos, Institucion_educativa, Tipo_institucion, Titulo_Carrera_Grado, Nivel_educacion, Campo_estudio, Fecha_inicio, Fecha_final, Estado_estudio, Logros) VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)"
+            añadirEdu = "INSERT INTO Educacion(Correos_educacion, Institucion_educativa, Tipo_institucion, Titulo_Carrera_Grado, Nivel_educacion, Campo_estudio, Fecha_inicio, Fecha_final, Estado_estudio, Logros) VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)"
             parametros = (
                 correo,
                 institucion_educativa,
@@ -188,7 +188,7 @@ def consultarEducacion(correo):
         )
         if conexion.is_connected():
             cursor = conexion.cursor()
-            consultarEdu = "SELECT * FROM Educacion WHERE Correos = %s"
+            consultarEdu = "SELECT * FROM Educacion WHERE Correos_educacion = %s"
             parametro = (correo,)
             cursor.execute(consultarEdu, parametro)
             resultado = cursor.fetchall()
@@ -216,7 +216,7 @@ def consultarExperiencia(correo):
         )
         if conexion.is_connected():
             cursor = conexion.cursor()
-            consultarExp = "SELECT * FROM Experiencia WHERE Correos = %s"
+            consultarExp = "SELECT * FROM Experiencia WHERE Correos_experiencia = %s"
             parametro = (correo,)
             cursor.execute(consultarExp, parametro)
             resultado = cursor.fetchall()
