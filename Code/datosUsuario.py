@@ -1,6 +1,5 @@
 import os
 
-import login
 import mysql.connector
 from dotenv import load_dotenv
 from mysql.connector import Error
