@@ -33,7 +33,7 @@ CREATE TABLE IF NOT EXISTS `Progent_Usuarios`.`informacion_usuarios` (
   `Correos` VARCHAR(200) NOT NULL,
   `Nombre` VARCHAR(60) NOT NULL,
   `Edad` INT NOT NULL,
-  `Telefono` VARCHAR(50) NOT NULL,
+  `Telefono` VARCHAR(50) NULL,
   `Correo_contacto` VARCHAR(200) NOT NULL,
   `Titulos` LONGTEXT NOT NULL,
   `Ubicacion` VARCHAR(100) NOT NULL,
