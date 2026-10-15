@@ -15,8 +15,9 @@ import anthropic
 from dotenv import load_dotenv
 from langgraph.graph import END, StateGraph
 from pypdf import PdfReader
+from typing import Literal
 
-from prompts import SYSTEM_EXTRACCION, USER_EXTRACCION
+from prompts import SYSTEM_EXTRACCION, USER_EXTRACCION, SYSTEM_EXTRACCION_LINKEDIN
 
 load_dotenv()
 
@@ -31,6 +32,7 @@ class EstadoPerfil(TypedDict, total=False):
     texto: str
     perfil: dict[str, Any]
     errores: list[str]
+    origen: str
 
 
 # --------------------------------------------------------------------------
@@ -93,6 +95,51 @@ def extraer(estado: EstadoPerfil) -> EstadoPerfil:
     return {"perfil": perfil}
 
 
+def extraerLinkedin(estado: EstadoPerfil) -> EstadoPerfil:
+    if estado.get("errores"):
+        return {}
+
+    respuesta = cliente.messages.create(
+        model=MODELO,
+        max_tokens=4000,
+        system=SYSTEM_EXTRACCION_LINKEDIN,
+        messages=[
+            {"role": "user", "content": USER_EXTRACCION.format(texto=estado["texto"])},
+        ],
+    )
+
+    bloques = [b.text for b in respuesta.content if b.type == "text"]
+    errores = list(estado.get("errores", []))
+    if not bloques:
+        errores.append("El modelo no devolvio texto")
+        return {"errores": errores}
+    crudo = "\n".join(bloques).strip()
+    if crudo.startswith("```"):
+        crudo.split("```")[1]
+        if crudo.startswith("json"):
+            crudo = crudo[4:]
+        crudo = crudo.strip()
+
+    inicio, fin = crudo.find("{"), crudo.rfind("}")
+    if inicio != -1 and fin != -1:
+        crudo = crudo[inicio : fin + 1]
+
+    try:
+        perfil = json.loads(crudo)
+    except json.JSONDecodeError as e:
+        errores = list(estado.get("errores", []))
+        errores.append(f"El modelo no devolvio el JSON valido {e}")
+        return {"errores": errores}
+
+    return {"perfil": perfil}
+
+
+def siguientePaso(estado: EstadoPerfil) -> Literal["cv", "linkedin"]:
+    if "cv" in estado["origen"]:
+        return "cv"
+    return "linkedin"
+
+
 # --------------------------------------------------------------------------
 # Nodo 3: revisar que el JSON tenga la forma esperada
 # --------------------------------------------------------------------------
@@ -122,10 +169,15 @@ def construir_grafo():
     g.add_node("leer_pdf", leer_pdf)
     g.add_node("extraer", extraer)
     g.add_node("validar", validar)
+    g.add_node("extraerLinkedin", extraerLinkedin)
 
     g.set_entry_point("leer_pdf")
-    g.add_edge("leer_pdf", "extraer")
+    g.add_conditional_edges(
+        "leer_pdf", siguientePaso, {"cv": "extraer", "linkedin": "extraerLinkedin"}
+    )
     g.add_edge("extraer", "validar")
+    g.add_edge("validar", END)
+    g.add_edge("extraerLinkedin", "validar")
     g.add_edge("validar", END)
 
     return g.compile()
