@@ -99,6 +99,23 @@ CREATE TABLE IF NOT EXISTS `Progent_Usuarios`.`Educacion` (
     ON UPDATE CASCADE)
 ENGINE = InnoDB;
 
+
+-- -----------------------------------------------------
+-- Table `Progent_Usuarios`.`archivos_usuarios`
+-- -----------------------------------------------------
+CREATE TABLE IF NOT EXISTS `Progent_Usuarios`.`archivos_usuarios` (
+  `Correos_usuarios` VARCHAR(200) NOT NULL,
+  `nombre_archivo` VARCHAR(300) NOT NULL,
+  `tipo` VARCHAR(100) NOT NULL,
+  `archivo_bytes` LONGBLOB NOT NULL,
+  PRIMARY KEY (`Correos_usuarios`),
+  CONSTRAINT `Correos_usuarios`
+    FOREIGN KEY (`Correos_usuarios`)
+    REFERENCES `Progent_Usuarios`.`Usuarios` (`Correos`)
+    ON DELETE CASCADE
+    ON UPDATE CASCADE)
+ENGINE = InnoDB;
+
 USE `Progent_Usuarios` ;
 
 -- -----------------------------------------------------
