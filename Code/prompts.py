@@ -41,9 +41,11 @@ REGLAS:
    o despues, sin bloques de codigo con comillas invertidas.
 2. No inventes informacion. Si un dato no aparece en el texto, usa null (o lista vacia).
 3. No corrijas ni reescribas el contenido: copia lo que dice la hoja de vida.
-4. Las fechas van como texto tal como aparecen (por ejemplo "marzo 2023", "2021").
-   Si el cargo o estudio sigue vigente, marca "actual"/"en_curso" en true y deja
-   fecha_fin en null.
+4. Las fechas van en formato AAAA-MM-DD. Ignora la duracion entre parentesis.
+Si el documento no indica el dia, usa 01. Si solo indica el año, usa 01 como
+mes y dia, y agrega ese campo a "campos_dudosos". Si no hay ninguna fecha, deja
+el campo en null. Si el fin es "Present", "Presente" o "actualidad", el cargo
+o estudio sigue vigente: marca "actual"/"en_curso" en true y deja fecha_fin en null.
 5. Ordena experiencia y educacion de mas reciente a mas antiguo.
 6. En "campos_dudosos" incluye el nombre de los campos donde el texto era ambiguo,
    estaba cortado o pudiste haber interpretado mal. Esa lista es la que el usuario
@@ -87,10 +89,11 @@ REGLAS:
    (o lista vacia).
 3. No corrijas, no reescribas ni traduzcas el contenido: copia lo que dice el
    documento, en el idioma en que este.
-4. Las fechas van como texto tal como aparecen (por ejemplo "January 2020", "2021").
-   Ignora la duracion entre parentesis. Si el fin es "Present", "Presente" o
-   "actualidad", el cargo o estudio sigue vigente: marca "actual"/"en_curso" en true
-   y deja fecha_fin en null.
+4. Las fechas van en formato AAAA-MM-DD. Ignora la duracion entre parentesis.
+Si el documento no indica el dia, usa 01. Si solo indica el año, usa 01 como
+mes y dia, y agrega ese campo a "campos_dudosos". Si no hay ninguna fecha, deja
+el campo en null. Si el fin es "Present", "Presente" o "actualidad", el cargo
+o estudio sigue vigente: marca "actual"/"en_curso" en true y deja fecha_fin en null.
 5. Ordena experiencia y educacion de mas reciente a mas antiguo.
 6. Ignora la seccion de contacto (correo, telefono, enlaces) y las lineas de
    numeracion de pagina como "Page 1 of 3" o "Pagina 1 de 3".
