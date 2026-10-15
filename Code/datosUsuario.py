@@ -1,6 +1,6 @@
 import os
 from datetime import datetime
-
+import mimetypes
 import mysql.connector
 from dotenv import load_dotenv
 from mysql.connector import Error
@@ -287,6 +287,107 @@ def añadirDatosLinkedin(correo, datos):
             return False, "No se pudo añadir la educacion al perfil"
         if añadir_educacion and añadir_experiencia and añadir_datos:
             return True, "Datos agregados correctamente"
+
+
+def guardarArchivos(correo, nombre_archivo, bytes):
+    tipo_MIME, _ = mimetypes.guess_type(nombre_archivo)
+    try:
+        conexion = mysql.connector.connect(
+            host=os.getenv("DB_HOST"),
+            port=os.getenv("DB_PORT"),
+            database=os.getenv("DB_NAME"),
+            user=os.getenv("DB_USER"),
+            password=os.getenv("DB_PASSWORD"),
+        )
+        if conexion.is_connected():
+            cursor = conexion.cursor()
+            insertar = "INSERT INTO archivos_usuarios(Correos_usuarios, nombre_archivo, tipo, archivo_bytes) VALUES(%s, %s, %s, %s)"
+            datosInsertar = (correo, nombre_archivo, tipo_MIME, bytes)
+            cursor.execute(insertar, datosInsertar)
+            conexion.commit()
+            return True, "Se guardo correctamente su archivo en su perfil"
+
+    except Error as e:
+        print(f"Fallo en las operaciones de arriba {e}")
+        return False, "No se pudo guardar el archivo en su perfil"
+    finally:
+        if "conexion" in locals() and conexion.is_connected():
+            cursor.close()
+            conexion.close()
+
+
+def actualizarArchivo(correo, nombre_archivo, bytes):
+    tipo_MIME, _ = mimetypes.guess_type(nombre_archivo)
+    try:
+        conexion = mysql.connector.connect(
+            host=os.getenv("DB_HOST"),
+            port=os.getenv("DB_PORT"),
+            database=os.getenv("DB_NAME"),
+            user=os.getenv("DB_USER"),
+            password=os.getenv("DB_PASSWORD"),
+        )
+        if conexion.is_connected():
+            cursor = conexion.cursor()
+            traerRegistros = (
+                "SELECT * FROM archivos_usuarios WHERE Correos_usuarios = %s"
+            )
+            dato_traer_registros = (correo,)
+            cursor.execute(traerRegistros, dato_traer_registros)
+            resultado_registros = cursor.fetchone()
+            nombre_archivo_original = resultado_registros[0]
+            tipo_archivo_original = resultado_registros[1]
+            bytes_originales = resultado_registros[2]
+            if nombre_archivo != nombre_archivo_original:
+                actualizacion_nombre = "UPDATE archivos_usuarios SET nombre_archivo = %s WHERE Correos_usuarios = %s"
+                datos_actualizar_nombre = (nombre_archivo, correo)
+                cursor.execute(actualizacion_nombre, datos_actualizar_nombre)
+
+            if tipo_MIME != tipo_archivo_original:
+                actualizacion_tipo = (
+                    "UPDATE archivos_usuarios SET tipo = %s WHERE Correos_usuarios = %s"
+                )
+                datos_actualizar_tipo = (tipo_MIME, correo)
+                cursor.execute(actualizacion_tipo, datos_actualizar_tipo)
+            if bytes != bytes_originales:
+                actualizacion_bytes = "UPDATE archivos_usuarios SET archivo_bytes = %s WHERE Correos_usuarios = %s"
+                datos_actualizar_bytes = (bytes, correo)
+                cursor.execute(actualizacion_bytes, datos_actualizar_bytes)
+            conexion.commit()
+            return True, "Se cargo el nuevo archivo a su perfil"
+    except Error as e:
+        print(f"Fallo en las operaciones de arriba {e}")
+        return False, "No se pudo cargar el nuevo archivo a su perfil"
+    finally:
+        if "conexion" in locals() and conexion.is_connected():
+            cursor.close()
+            conexion.close()
+
+
+def consultarArchivo(correo):
+    try:
+        conexion = mysql.connector.connect(
+            host=os.getenv("DB_HOST"),
+            port=os.getenv("DB_PORT"),
+            database=os.getenv("DB_NAME"),
+            user=os.getenv("DB_USER"),
+            password=os.getenv("DB_PASSWORD"),
+        )
+        if conexion.is_connected():
+            cursor = conexion.cursor()
+            traer_archivo = (
+                "SELECT * FROM archivos_usuarios WHERE Correos_usuarios = %s"
+            )
+            dato_traer_archivo = (correo,)
+            cursor.execute(traer_archivo, dato_traer_archivo)
+            resultado_traer_archivo = cursor.fetchone()
+            return True, resultado_traer_archivo
+    except Error as e:
+        print(f"Fallo en las operaciones de arriba {e}")
+        return False, "No se pudo cargar el archivo guardado en su perfil"
+    finally:
+        if "conexion" in locals() and conexion.is_connected():
+            cursor.close()
+            conexion.close()
 
 
 def consultarEducacion(correo):

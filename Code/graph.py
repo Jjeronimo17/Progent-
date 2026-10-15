@@ -10,13 +10,12 @@ import io
 import json
 import os
 from typing import Any, TypedDict
-
+from docx import Document
 import anthropic
 from dotenv import load_dotenv
 from langgraph.graph import END, StateGraph
 from pypdf import PdfReader
 from typing import Literal
-
 from prompts import SYSTEM_EXTRACCION, USER_EXTRACCION, SYSTEM_EXTRACCION_LINKEDIN
 
 load_dotenv()
@@ -29,19 +28,30 @@ class EstadoPerfil(TypedDict, total=False):
     """Estado que viaja por el grafo."""
 
     pdf_bytes: bytes
+    docx_bytes: bytes
     texto: str
     perfil: dict[str, Any]
     errores: list[str]
     origen: str
+    tipo: Literal["pdf", "docx"]
 
 
 # --------------------------------------------------------------------------
 # Nodo 1: sacar el texto del PDF
 # --------------------------------------------------------------------------
 def leer_pdf(estado: EstadoPerfil) -> EstadoPerfil:
-    lector = PdfReader(io.BytesIO(estado["pdf_bytes"]))
-    paginas = [(p.extract_text() or "") for p in lector.pages]
-    texto = "\n".join(paginas).strip()
+    if estado["tipo"].lower() == "docx":
+        lector = Document(io.BytesIO(estado["docx_bytes"]))
+        parrafos = [p.text for p in lector.paragraphs]
+        for p in lector.tables:
+            for r in p.rows:
+                for c in r.cells:
+                    parrafos.append(c.text)
+        texto = "\n".join(parrafos).strip()
+    else:
+        lector = PdfReader(io.BytesIO(estado["pdf_bytes"]))
+        paginas = [(p.extract_text() or "") for p in lector.pages]
+        texto = "\n".join(paginas).strip()
 
     errores = list(estado.get("errores", []))
     if len(texto) < 50:
