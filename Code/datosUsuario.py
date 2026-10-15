@@ -1,4 +1,5 @@
 import os
+from datetime import datetime
 
 import mysql.connector
 from dotenv import load_dotenv
@@ -13,10 +14,8 @@ def añadirDatos(
     edad,
     telefono,
     correo_contacto,
-    titulos,
     ubicacion,
     ocupacion,
-    estudios=None,
 ):
     try:
         conexion = mysql.connector.connect(
@@ -28,17 +27,17 @@ def añadirDatos(
         )
         if conexion.is_connected():
             cursor = conexion.cursor()
-            agregarInfo = "INSERT INTO informacion_usuarios VALUES(%s, %s, %s, %s, %s,%s, %s, %s, %s);"
+            agregarInfo = (
+                "INSERT INTO informacion_usuarios VALUES(%s, %s, %s, %s, %s,%s, %s);"
+            )
             datos = (
                 correo,
                 nombre,
                 edad,
                 telefono,
                 correo_contacto,
-                titulos,
                 ubicacion,
                 ocupacion,
-                estudios,
             )
             cursor.execute(agregarInfo, datos)
             conexion.commit()
@@ -174,6 +173,120 @@ def añadirEducacion(
         if "conexion" in locals() and conexion.is_connected():
             cursor.close()
             conexion.close()
+
+
+def añadirDatosLinkedin(correo, datos):
+    verificar_perfil = "SELECT * FROM informacion_usuarios WHERE Correos = %s"
+    verificar_experiencia = "SELECT * FROM Experiencia WHERE Correos_experiencia = %s"
+    verificar_educacion = "SELECT * FROM Educacion WHERE Correos_educacion = %s"
+    verificar_perfil_datos = (correo,)
+    verificar_experiencia_datos = (correo,)
+    verificar_educacion_datos = (correo,)
+    try:
+        conexion = mysql.connector.connect(
+            host=os.getenv("DB_HOST"),
+            port=os.getenv("DB_PORT"),
+            database=os.getenv("DB_NAME"),
+            user=os.getenv("DB_USER"),
+            password=os.getenv("DB_PASSWORD"),
+        )
+        if conexion.is_connected():
+            cursor = conexion.cursor()
+            cursor.execute(verificar_perfil, verificar_perfil_datos)
+            resultado_perfil = cursor.fetchone()
+            cursor.execute(verificar_experiencia, verificar_experiencia_datos)
+            resultado_experiencia = cursor.fetchall()
+            cursor.execute(verificar_educacion, verificar_educacion_datos)
+            resultado_educacion = cursor.fetchall()
+            if (resultado_perfil) or (resultado_educacion) or (resultado_experiencia):
+                return False, "Ya tienes un perfil creado"
+    except Error as e:
+        print(f"Fallo en las operaciones de arriba {e}")
+    finally:
+        if "conexion" in locals() and conexion.is_connected():
+            cursor.close()
+            conexion.close()
+    nombre = datos["nombre_completo"]
+    titulo = datos["titular"]
+    correo_contacto = datos["contacto"]["correo"]
+    telefono_contacto = datos["contacto"]["telefono"]
+    ubicacion = datos["contacto"]["ciudad"]
+    lenguas = []
+    for i in datos["idiomas"]:
+        lenguas.append(i["idioma"])
+    habilidades_tecnicas = ", ".join(datos["habilidades"]) + ", " + ", ".join(lenguas)
+    añadir_datos, mensajeDat = añadirDatos(
+        correo,
+        nombre,
+        None,
+        telefono_contacto,
+        correo_contacto,
+        ubicacion,
+        titulo,
+    )
+    if not añadir_datos:
+        return False, "Ocurrio un fallo al intentar cargar la informacion a tu perfil"
+    for experiencia in datos["experiencia"]:
+        formato = "%Y-%m-%d"
+        if experiencia["actual"] == True:
+            fecha_final = None
+            fecha_final_formateada = None
+        else:
+            fecha_final = experiencia["fecha_fin"]
+            fecha_final_formateada = datetime.strptime(fecha_final, formato)
+
+        fecha_inicio = experiencia["fecha_inicio"]
+        fecha_inicio_formateada = datetime.strptime(fecha_inicio, formato)
+        añadir_experiencia = añadirExperiencia(
+            correo,
+            experiencia["empresa"],
+            None,
+            None,
+            experiencia["cargo"],
+            None,
+            fecha_inicio_formateada,
+            experiencia["descripcion"],
+            None,
+            habilidades_tecnicas,
+            None,
+            None,
+            None,
+            fecha_final_formateada,
+        )
+        if not añadir_experiencia:
+            return False, "No se pudo añadir correctamente la experiencia(s) al perfil"
+    for educacion in datos["educacion"]:
+        formatoEducacion = "%Y-%m-%d"
+        if educacion["en_curso"] == True:
+            fecha_final_educacion = None
+            fecha_final_educacion_formateada = None
+            estado_estudio = "Cursando"
+        else:
+            fecha_final_educacion = educacion["fecha_fin"]
+            fecha_final_educacion_formateada = datetime.strptime(
+                fecha_final_educacion, formatoEducacion
+            )
+            estado_estudio = "Graduado"
+        fecha_inicio_educacion = educacion["fecha_inicio"]
+        fecha_inicio_educacion_formateada = datetime.strptime(
+            fecha_inicio_educacion, formatoEducacion
+        )
+        añadir_educacion, mensajeEdu = añadirEducacion(
+            correo,
+            educacion["institucion"],
+            None,
+            educacion["titulo"],
+            None,
+            None,
+            fecha_inicio_educacion_formateada,
+            estado_estudio,
+            None,
+            fecha_final_educacion_formateada,
+        )
+        if not añadir_educacion:
+            return False, "No se pudo añadir la educacion al perfil"
+        if añadir_educacion and añadir_experiencia and añadir_datos:
+            return True, "Datos agregados correctamente"
 
 
 def consultarEducacion(correo):
