@@ -175,7 +175,7 @@ def añadirEducacion(
             conexion.close()
 
 
-def añadirDatosLinkedin(correo, datos):
+def añadirDatosExtraidos(correo, datos):
     verificar_perfil = "SELECT * FROM informacion_usuarios WHERE Correos = %s"
     verificar_experiencia = "SELECT * FROM Experiencia WHERE Correos_experiencia = %s"
     verificar_educacion = "SELECT * FROM Educacion WHERE Correos_educacion = %s"
