@@ -474,10 +474,8 @@ def actualizarPerfil(
     edad,
     telefono,
     correo_contacto,
-    titulos,
     ubicacion,
     ocupacion,
-    estudios=None,
 ):
     try:
         conexion = mysql.connector.connect(
@@ -489,7 +487,7 @@ def actualizarPerfil(
         )
         if conexion.is_connected():
             cursor = conexion.cursor()
-            recuperarValores = "SELECT Nombre, Edad, Telefono, Correo_contacto, Titulos, Ubicacion, Ocupacion, Estudios FROM informacion_usuarios WHERE Correos = %s;"
+            recuperarValores = "SELECT Nombre, Edad, Telefono, Correo_contacto,Ubicacion, Ocupacion FROM informacion_usuarios WHERE Correos = %s;"
             dato = (correo,)
             cursor.execute(recuperarValores, dato)
             resultadoConsulta = cursor.fetchone()
@@ -497,10 +495,8 @@ def actualizarPerfil(
             edadOriginal = resultadoConsulta[1]
             telefonoOriginal = resultadoConsulta[2]
             correo_contactoOriginal = resultadoConsulta[3]
-            titulosOriginal = resultadoConsulta[6]
-            ubicacionOriginal = resultadoConsulta[7]
-            ocupacionOriginal = resultadoConsulta[8]
-            estudiosOriginal = resultadoConsulta[9]
+            ubicacionOriginal = resultadoConsulta[4]
+            ocupacionOriginal = resultadoConsulta[5]
             Cambios = []
             if nombre != nombreOriginal:
                 consulta = (
@@ -528,13 +524,6 @@ def actualizarPerfil(
                 datos4 = (correo_contacto, correo)
                 cursor.execute(consulta4, datos4)
                 Cambios.append("Correo de Contacto")
-            if titulos != titulosOriginal:
-                consulta5 = (
-                    "UPDATE informacion_usuarios SET Titulos = %s WHERE Correos = %s"
-                )
-                datos5 = (titulos, correo)
-                cursor.execute(consulta5, datos5)
-                Cambios.append("Titulos")
             if ubicacion != ubicacionOriginal:
                 consulta6 = (
                     "UPDATE informacion_usuarios SET Ubicacion = %s WHERE Correos = %s"
@@ -549,15 +538,6 @@ def actualizarPerfil(
                 datos7 = (ocupacion, correo)
                 cursor.execute(consulta7, datos7)
                 Cambios.append("Ocupacion")
-            if (estudios == "" and estudiosOriginal != None) or (
-                estudios != "" and estudiosOriginal == None
-            ):
-                consulta8 = (
-                    "UPDATE informacion_usuarios SET Estudios = %s WHERE Correos = %s"
-                )
-                datos8 = (estudios, correo)
-                cursor.execute(consulta8, datos8)
-                Cambios.append("Estudios")
             conexion.commit()
             if not Cambios:
                 return False, "No hubieron cambios para guardar"
