@@ -9,14 +9,15 @@ ambiente funciona de punta a punta, no cubrir todos los casos.
 import io
 import json
 import os
-from typing import Any, TypedDict
-from docx import Document
+from typing import Any, Literal, TypedDict
+
 import anthropic
+import datosUsuario
+from docx import Document
 from dotenv import load_dotenv
 from langgraph.graph import END, StateGraph
+from prompts import SYSTEM_EXTRACCION, SYSTEM_EXTRACCION_LINKEDIN, USER_EXTRACCION
 from pypdf import PdfReader
-from typing import Literal
-from prompts import SYSTEM_EXTRACCION, USER_EXTRACCION, SYSTEM_EXTRACCION_LINKEDIN
 
 load_dotenv()
 
@@ -34,6 +35,8 @@ class EstadoPerfil(TypedDict, total=False):
     errores: list[str]
     origen: str
     tipo: Literal["pdf", "docx"]
+    correo: str
+    secciones_faltantes: [str]
 
 
 # --------------------------------------------------------------------------
@@ -60,6 +63,98 @@ def leer_pdf(estado: EstadoPerfil) -> EstadoPerfil:
             "Prueba con otro archivo."
         )
     return {"texto": texto, "errores": errores}
+
+
+def cargarPerfil(estado: EstadoPerfil) -> EstadoPerfil:
+    booleano_info_general, informacion_general_perfil = datosUsuario.consultarDatos(
+        estado["correo"]
+    )
+    booleano_experiencia, informacion_experiencia = datosUsuario.consultarExperiencia(
+        estado["correo"]
+    )
+    booleano_educacion, informacion_educacion = datosUsuario.consultarEducacion(
+        estado["correo"]
+    )
+    if not booleano_info_general:
+        errores = list(estado.get("errores", []))
+        errores.append("No se pudo acceder a los datos del perfil")
+        return {"errores": errores}
+    elif not booleano_experiencia:
+        errores = list(estado.get("errores", []))
+        errores.append("No se pudo acceder a la experiencia del perfil")
+        return {"errores": errores}
+    elif not booleano_educacion:
+        errores = list(estado.get("errores", []))
+        errores.append("No se pudo acceder a la educacion del perfil")
+        return {"errores": errores}
+    else:
+        columnas_generales = [
+            "Correos",
+            "Nombre",
+            "Edad",
+            "Telefono",
+            "Correo_contacto",
+            "Ubicacion",
+            "Ocupacion",
+        ]
+        columnas_exp = [
+            "ID",
+            "Correos_experiencia",
+            "Nombre_empresa",
+            "Sector_industria",
+            "Tamaño_empresa",
+            "Titulo_puesto",
+            "Nivel_seniority",
+            "Fecha_inicio",
+            "Fecha_finalizacion",
+            "Descripcion_funciones",
+            "Logros",
+            "Habilidades",
+            "Ubicacion_empresa",
+            "Tipo_contrato",
+            "Modalidad_trabajo",
+        ]
+        columnas_edu = [
+            "Id_educacion",
+            "Correos_educacion",
+            "Institucion_educativa",
+            "Tipo_institucion",
+            "Titulo_Carrera_grado",
+            "Nivel_educacion",
+            "Campo_Estudio",
+            "Fecha_inicio",
+            "Fecha_final",
+            "Estado_Estudio",
+            "Logros",
+        ]
+        generales = dict(zip(columnas_generales, informacion_general_perfil))
+        experiencias = [dict(zip(columnas_exp, f)) for f in informacion_experiencia]
+        estudios = [dict(zip(columnas_edu, f)) for f in informacion_educacion]
+        perfil = {
+            "generales": generales,
+            "experiencia": experiencias,
+            "educacion": estudios,
+        }
+        return {"perfil": perfil}
+
+
+def verificarPerfilCompleto(estado: EstadoPerfil) -> EstadoPerfil:
+    if not estado["perfil"]["experiencia"]:
+        estado["secciones_faltantes"].append("Experiencia no encontrada")
+    if not estado["perfil"]["educacion"]:
+        estado["secciones_faltantes"].append("Educacion no encontrada")
+    if not estado["perfil"]["generales"]["Nombre"]:
+        estado["secciones_faltantes"].append("Nombre no encontrado")
+    if not estado["perfil"]["generales"]["Edad"]:
+        estado["secciones_faltantes"].append("Edad no encontrada")
+    if not estado["perfil"]["generales"]["Telefono"]:
+        estado["secciones_faltantes"].append("Telefono no encontrado")
+    if not estado["perfil"]["generales"]["Correo_contacto"]:
+        estado["secciones_faltantes"].append("Correo de contacto no encontrado")
+    if not estado["perfil"]["generales"]["Ubicacion"]:
+        estado["secciones_faltantes"].append("Ubicacion no encontrada")
+    if not estado["perfil"]["generales"]["Ocupacion"]:
+        estado["secciones_faltantes"].append("Ocupacion no encontrada")
 
 
 # --------------------------------------------------------------------------
