@@ -225,6 +225,50 @@ CREATE TABLE IF NOT EXISTS `Progent_Usuarios`.`Vacantes_guardadas` (
     ON UPDATE CASCADE)
 ENGINE = InnoDB;
 
+-- -----------------------------------------------------
+-- Table `Progent_Usuarios`.`Alertas`
+-- -----------------------------------------------------
+CREATE TABLE IF NOT EXISTS `Progent_Usuarios`.`Alertas` (
+  `Correos_alerta` VARCHAR(200) NOT NULL,
+  `Palabra_clave` VARCHAR(100) NULL,
+  `Ubicacion` VARCHAR(100) NULL,
+  `Salario_minimo` INT NULL,
+  `Modalidad` ENUM('Hibrido', 'Presencial', 'Virtual') NULL,
+  `Ultima_vacante_revisada` INT NOT NULL DEFAULT 0,
+  `Fecha_creacion` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (`Correos_alerta`),
+  CONSTRAINT `Correos_alerta`
+    FOREIGN KEY (`Correos_alerta`)
+    REFERENCES `Progent_Usuarios`.`Usuarios` (`Correos`)
+    ON DELETE CASCADE
+    ON UPDATE CASCADE)
+ENGINE = InnoDB;
+
+
+-- -----------------------------------------------------
+-- Table `Progent_Usuarios`.`Notificaciones`
+-- -----------------------------------------------------
+CREATE TABLE IF NOT EXISTS `Progent_Usuarios`.`Notificaciones` (
+  `Id_notificacion` INT NOT NULL AUTO_INCREMENT,
+  `Correos_notificacion` VARCHAR(200) NOT NULL,
+  `Id_vacante_notificacion` INT NOT NULL,
+  `Fecha_notificacion` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `Leida` TINYINT(1) NOT NULL DEFAULT 0,
+  PRIMARY KEY (`Id_notificacion`),
+  UNIQUE INDEX `Usuario_vacante_notificacion_UNIQUE` (`Correos_notificacion` ASC, `Id_vacante_notificacion` ASC) VISIBLE,
+  INDEX `Id_vacante_notificacion_idx` (`Id_vacante_notificacion` ASC) VISIBLE,
+  CONSTRAINT `Correos_notificacion`
+    FOREIGN KEY (`Correos_notificacion`)
+    REFERENCES `Progent_Usuarios`.`Usuarios` (`Correos`)
+    ON DELETE CASCADE
+    ON UPDATE CASCADE,
+  CONSTRAINT `Id_vacante_notificacion`
+    FOREIGN KEY (`Id_vacante_notificacion`)
+    REFERENCES `Progent_Usuarios`.`Vacantes` (`Id_vacante`)
+    ON DELETE CASCADE
+    ON UPDATE CASCADE)
+ENGINE = InnoDB;
+
 USE `Progent_Usuarios` ;
 
 -- -----------------------------------------------------
