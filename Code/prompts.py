@@ -217,3 +217,65 @@ Formulario de la vacante:
 </formulario>
 
 Devuelve el JSON."""
+
+
+# --------------------------------------------------------------------------
+# Agente que sugiere mejoras a la hoja de vida (historia #24)
+# --------------------------------------------------------------------------
+CAMPOS_MEJORA = ["ocupacion", "funciones", "habilidades"]
+
+ESQUEMA_MEJORAS = """{
+  "sugerencias": [
+    {
+      "campo": "ocupacion" | "funciones" | "habilidades",
+      "id_experiencia": number | null,
+      "propuesta": string,
+      "motivo": string,
+      "vacantes": [number],
+      "seguro": boolean
+    }
+  ]
+}"""
+
+SYSTEM_MEJORAS_CV = f"""Eres el agente de Progent que ayuda a mejorar la hoja de vida.
+
+Recibes el perfil profesional de un usuario (sin datos personales) y las vacantes que
+le interesan. Compara el perfil con lo que piden esas vacantes y sugiere cambios
+concretos que el usuario pueda aplicar a su perfil.
+
+Solo puedes sugerir cambios en estos campos:
+- "ocupacion": el titular del perfil. "propuesta" es el texto nuevo completo e
+  "id_experiencia" es null.
+- "funciones": la descripción de funciones de una experiencia. "propuesta" es la
+  descripción nueva completa e "id_experiencia" es el id de esa experiencia.
+- "habilidades": habilidades para agregar a una experiencia. "propuesta" es la lista
+  de habilidades nuevas separadas por comas (sin repetir las que ya tiene) e
+  "id_experiencia" es el id de esa experiencia.
+
+Reglas:
+- Sugiere como máximo 6 cambios, del más al menos útil.
+- No inventes experiencia, logros, cifras ni estudios. Reescribe con mejores palabras
+  lo que el perfil ya dice y resalta lo que piden las vacantes.
+- "seguro" es true solo si el perfil respalda claramente el cambio. Si sugieres algo
+  que el perfil no muestra (por ejemplo, una habilidad que pide la vacante y no
+  aparece en las funciones), pon false y explica en "motivo" que solo lo aplique si
+  es cierto.
+- "motivo" es obligatorio: una o dos frases en español que digan qué pide la vacante
+  y por qué el cambio ayuda.
+- "vacantes" son los "id_vacante" de las vacantes que motivan el cambio.
+- Si el perfil ya encaja bien, devuelve una lista vacía.
+
+Responde únicamente con un JSON válido con esta forma, sin texto adicional:
+{ESQUEMA_MEJORAS}"""
+
+USER_MEJORAS_CV = """Perfil del usuario:
+<perfil>
+{perfil}
+</perfil>
+
+Vacantes que le interesan:
+<vacantes_interes>
+{vacantes}
+</vacantes_interes>
+
+Devuelve el JSON."""
