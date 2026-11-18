@@ -41,3 +41,38 @@ def consultarVacantes():
         if "conexion" in locals() and conexion.is_connected():
             cursor.close()
             conexion.close()
+
+
+def consultarVacante(id_vacante):
+    """Devuelve una vacante por su id, esté abierta o cerrada.
+
+    Retorna (True, diccionario) si existe, (True, None) si no existe
+    o (False, mensaje) si falla la consulta.
+    """
+    try:
+        conexion = mysql.connector.connect(
+            host=os.getenv("DB_HOST"),
+            port=os.getenv("DB_PORT"),
+            database=os.getenv("DB_NAME"),
+            user=os.getenv("DB_USER"),
+            password=os.getenv("DB_PASSWORD"),
+        )
+        if conexion.is_connected():
+            cursor = conexion.cursor(dictionary=True)
+            consultaVacante = (
+                "SELECT Id_vacante, Cargo, Empresa, Ubicacion, Descripcion, "
+                "Requisitos, Estado, Fecha_publicacion FROM Vacantes "
+                "WHERE Id_vacante = %s"
+            )
+            parametro = (id_vacante,)
+            cursor.execute(consultaVacante, parametro)
+            resultado = cursor.fetchone()
+            return True, resultado
+        return False, "No se pudo conectar a la base de datos, intente de nuevo"
+    except Error as e:
+        print(f"Fallo en las operaciones de arriba {e}")
+        return False, "No se pudo cargar la vacante, intente de nuevo"
+    finally:
+        if "conexion" in locals() and conexion.is_connected():
+            cursor.close()
+            conexion.close()
