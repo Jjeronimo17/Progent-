@@ -90,11 +90,25 @@ def registrarPostulacion(correo, id_vacante):
             if faltantes:
                 return False, mensajeFaltantes(faltantes)
 
+            cursor.execute(
+                "SELECT COUNT(*) FROM archivos_usuarios WHERE Correos_usuarios = %s", (correo,)
+            )
+            if cursor.fetchone()[0] == 0:
+                return False, "Para postularte necesitas cargar tu hoja de vida."
+
             insertar = (
                 "INSERT INTO Postulaciones(Correos_postulacion, Id_vacante_postulacion) "
                 "VALUES (%s, %s)"
             )
             cursor.execute(insertar, (correo, id_vacante))
+            # Copia de la hoja de vida usada: así se sabe cuál quedó asociada aunque
+            # después el usuario la cambie en su perfil (historia #20).
+            cursor.execute(
+                "INSERT INTO Cv_postulacion(Id_postulacion_cv, Nombre_archivo, Tipo, Archivo_bytes) "
+                "SELECT %s, nombre_archivo, tipo, archivo_bytes FROM archivos_usuarios "
+                "WHERE Correos_usuarios = %s",
+                (cursor.lastrowid, correo),
+            )
             conexion.commit()
             return True, "Tu postulación quedó registrada en tu panel de seguimiento."
         return False, (
@@ -121,8 +135,9 @@ def consultarPostulacion(correo, id_vacante):
         if conexion.is_connected():
             cursor = conexion.cursor(dictionary=True)
             consulta = (
-                "SELECT Id_postulacion, Fecha_postulacion, Estado FROM Postulaciones "
-                "WHERE Correos_postulacion = %s AND Id_vacante_postulacion = %s"
+                "SELECT p.Id_postulacion, p.Fecha_postulacion, p.Estado, c.Nombre_archivo AS Cv "
+                "FROM Postulaciones p LEFT JOIN Cv_postulacion c ON c.Id_postulacion_cv = p.Id_postulacion "
+                "WHERE p.Correos_postulacion = %s AND p.Id_vacante_postulacion = %s"
             )
             cursor.execute(consulta, (correo, id_vacante))
             return True, cursor.fetchone()
@@ -145,9 +160,11 @@ def consultarPostulaciones(correo):
             consulta = (
                 "SELECT p.Id_postulacion, p.Fecha_postulacion, p.Estado, "
                 "v.Id_vacante, v.Cargo, v.Empresa, v.Ubicacion, v.Descripcion, "
-                "v.Requisitos, v.Fecha_publicacion, v.Estado AS Estado_vacante "
+                "v.Requisitos, v.Fecha_publicacion, v.Estado AS Estado_vacante, "
+                "c.Nombre_archivo AS Cv "
                 "FROM Postulaciones p "
                 "JOIN Vacantes v ON v.Id_vacante = p.Id_vacante_postulacion "
+                "LEFT JOIN Cv_postulacion c ON c.Id_postulacion_cv = p.Id_postulacion "
                 "WHERE p.Correos_postulacion = %s "
                 "ORDER BY p.Fecha_postulacion DESC, p.Id_postulacion DESC"
             )

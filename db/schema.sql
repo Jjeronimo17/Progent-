@@ -305,6 +305,23 @@ CREATE TABLE IF NOT EXISTS `Progent_Usuarios`.`Respuestas_formulario` (
     ON UPDATE CASCADE)
 ENGINE = InnoDB;
 
+-- -----------------------------------------------------
+-- Table `Progent_Usuarios`.`Cv_postulacion`
+-- -----------------------------------------------------
+CREATE TABLE IF NOT EXISTS `Progent_Usuarios`.`Cv_postulacion` (
+  `Id_postulacion_cv` INT NOT NULL,
+  `Nombre_archivo` VARCHAR(300) NOT NULL,
+  `Tipo` VARCHAR(100) NOT NULL,
+  `Archivo_bytes` LONGBLOB NOT NULL,
+  `Fecha_asociacion` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (`Id_postulacion_cv`),
+  CONSTRAINT `Id_postulacion_cv`
+    FOREIGN KEY (`Id_postulacion_cv`)
+    REFERENCES `Progent_Usuarios`.`Postulaciones` (`Id_postulacion`)
+    ON DELETE CASCADE
+    ON UPDATE CASCADE)
+ENGINE = InnoDB;
+
 USE `Progent_Usuarios` ;
 
 -- -----------------------------------------------------

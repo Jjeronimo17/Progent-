@@ -103,3 +103,35 @@ def consultarCarta(correo, id_postulacion):
         if "conexion" in locals() and conexion.is_connected():
             cursor.close()
             conexion.close()
+
+
+def guardarCvPerfil(correo, nombre_archivo, datos):
+    """Guarda la hoja de vida en el perfil (tabla archivos_usuarios) si aún no tiene una.
+
+    Valida el formato y el contenido como las cartas, pero permite hasta 5 MB.
+    Retorna (True, mensaje) o (False, mensaje).
+    """
+    valido, tipo = validarDocumento(nombre_archivo, datos, max_bytes=5 * 1024 * 1024)
+    if not valido:
+        return False, tipo
+    try:
+        conexion = conectar()
+        if conexion.is_connected():
+            cursor = conexion.cursor()
+            cursor.execute(
+                "INSERT INTO archivos_usuarios(Correos_usuarios, nombre_archivo, tipo, archivo_bytes) "
+                "VALUES (%s, %s, %s, %s)",
+                (correo, nombre_archivo, tipo, datos),
+            )
+            conexion.commit()
+            return True, f"Hoja de vida «{nombre_archivo}» guardada en tu perfil."
+        return False, "No se pudo conectar a la base de datos, intente de nuevo"
+    except Error as e:
+        if e.errno == 1062:
+            return False, "Ya tienes una hoja de vida guardada en tu perfil."
+        print(f"Fallo en las operaciones de arriba {e}")
+        return False, "No se pudo guardar la hoja de vida, intente de nuevo"
+    finally:
+        if "conexion" in locals() and conexion.is_connected():
+            cursor.close()
+            conexion.close()
