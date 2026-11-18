@@ -323,6 +323,24 @@ CREATE TABLE IF NOT EXISTS `Progent_Usuarios`.`Cv_postulacion` (
     ON UPDATE CASCADE)
 ENGINE = InnoDB;
 
+-- -----------------------------------------------------
+-- Table `Progent_Usuarios`.`Historial_estados`
+-- -----------------------------------------------------
+CREATE TABLE IF NOT EXISTS `Progent_Usuarios`.`Historial_estados` (
+  `Id_historial` INT NOT NULL AUTO_INCREMENT,
+  `Id_postulacion_historial` INT NOT NULL,
+  `Estado_anterior` ENUM('Postulado', 'En revision', 'Entrevista', 'Oferta', 'Rechazado', 'Retirado') NOT NULL,
+  `Estado_nuevo` ENUM('Postulado', 'En revision', 'Entrevista', 'Oferta', 'Rechazado', 'Retirado') NOT NULL,
+  `Fecha_cambio` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (`Id_historial`),
+  INDEX `Id_postulacion_historial_idx` (`Id_postulacion_historial` ASC) VISIBLE,
+  CONSTRAINT `Id_postulacion_historial`
+    FOREIGN KEY (`Id_postulacion_historial`)
+    REFERENCES `Progent_Usuarios`.`Postulaciones` (`Id_postulacion`)
+    ON DELETE CASCADE
+    ON UPDATE CASCADE)
+ENGINE = InnoDB;
+
 USE `Progent_Usuarios` ;
 
 -- -----------------------------------------------------
