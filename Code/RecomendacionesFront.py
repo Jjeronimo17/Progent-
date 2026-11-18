@@ -1,11 +1,13 @@
 import streamlit as st
 
+from guardadas import guardarVacante
 from recomendaciones import (
     consultarCriterios,
     consultarDeInteres,
     generarRecomendaciones,
     guardarCriterios,
     guardarDecision,
+    prepararRecomendaciones,
 )
 
 MODALIDADES = ["Cualquiera", "Hibrido", "Presencial", "Virtual"]
@@ -58,16 +60,34 @@ def seccion_criterios():
                 st.error(mensaje)
 
 
+def quitar_de_la_lista(id_vacante):
+    resultado = st.session_state.get("resultado_recomendaciones")
+    if resultado:
+        resultado["recomendaciones"] = [
+            r for r in resultado["recomendaciones"] if r["vacante"]["Id_vacante"] != id_vacante
+        ]
+
+
 def decidir(id_vacante, decision, motivo):
     # Se ejecuta con on_click, antes de volver a dibujar la página.
     exito, mensaje = guardarDecision(correo_actual(), id_vacante, decision, motivo)
     st.session_state["mensaje_recomendaciones"] = (exito, mensaje)
     if exito:
-        resultado = st.session_state.get("resultado_recomendaciones")
-        if resultado:
-            resultado["recomendaciones"] = [
-                r for r in resultado["recomendaciones"] if r["vacante"]["Id_vacante"] != id_vacante
-            ]
+        quitar_de_la_lista(id_vacante)
+
+
+def guardar_recomendada(id_vacante):
+    # La guardada pasa a Guardadas y ya no se vuelve a recomendar (#25).
+    exito, mensaje = guardarVacante(correo_actual(), id_vacante)
+    st.session_state["mensaje_recomendaciones"] = (exito, mensaje)
+    if exito:
+        quitar_de_la_lista(id_vacante)
+
+
+def ver_para_postularme(id_vacante):
+    # Lleva al detalle de la vacante, donde se elige la hoja de vida y se postula.
+    st.session_state["seccion"] = "Vacantes"
+    st.session_state["vacante_seleccionada"] = id_vacante
 
 
 def mostrar_recomendacion(recomendacion):
@@ -80,6 +100,7 @@ def mostrar_recomendacion(recomendacion):
         if recomendacion["seguro"]:
             st.markdown(f"**Por qué te la recomiendo:** {recomendacion['motivo']}")
         else:
+            st.caption("Menor relevancia")
             st.warning(
                 "No estoy seguro de que esta vacante encaje contigo. "
                 f"Te la recomiendo porque: {recomendacion['motivo']}"
@@ -91,8 +112,8 @@ def mostrar_recomendacion(recomendacion):
             st.markdown("**Requisitos**")
             st.write(vacante["Requisitos"])
 
-        izquierda, derecha = st.columns(2)
-        izquierda.button(
+        interesa, guardar, postular, descartar = st.columns(4)
+        interesa.button(
             "Me interesa",
             key=f"interesa_{id_vacante}",
             type="primary",
@@ -100,7 +121,21 @@ def mostrar_recomendacion(recomendacion):
             on_click=decidir,
             args=(id_vacante, "Interesa", recomendacion["motivo"]),
         )
-        derecha.button(
+        guardar.button(
+            "Guardar",
+            key=f"guardar_rec_{id_vacante}",
+            use_container_width=True,
+            on_click=guardar_recomendada,
+            args=(id_vacante,),
+        )
+        postular.button(
+            "Postularme",
+            key=f"postular_rec_{id_vacante}",
+            use_container_width=True,
+            on_click=ver_para_postularme,
+            args=(id_vacante,),
+        )
+        descartar.button(
             "Descartar",
             key=f"descartar_{id_vacante}",
             use_container_width=True,
@@ -140,13 +175,26 @@ def seccion_resultado():
 
     if not resultado["recomendaciones"]:
         if resultado["total"] == 0:
-            st.info("El agente no encontró vacantes que encajen con tu perfil y tus criterios.")
+            st.info(
+                "No encontré vacantes que coincidan con tu perfil y tus criterios. "
+                "Cuando se publiquen vacantes nuevas las revisaré y te las mostraré aquí."
+            )
         else:
-            st.info("Ya respondiste todas las recomendaciones. Busca de nuevo para ver otras.")
+            st.info(
+                "Ya respondiste todas las recomendaciones. Te mostraré otras cuando se "
+                "publiquen vacantes nuevas, o usa «Actualizar recomendaciones»."
+            )
         return
 
     st.caption("Estas son sugerencias del agente. Nada se guarda hasta que respondas.")
-    for recomendacion in resultado["recomendaciones"]:
+    # Primero las que el agente ve claras; las dudosas van al final, como de menor relevancia.
+    recomendaciones = sorted(resultado["recomendaciones"], key=lambda r: not r["seguro"])
+    if not any(r["seguro"] for r in recomendaciones):
+        st.info(
+            "No encontré coincidencias claras con tu perfil: estas recomendaciones son de "
+            "menor relevancia."
+        )
+    for recomendacion in recomendaciones:
         mostrar_recomendacion(recomendacion)
 
 
@@ -165,8 +213,50 @@ def seccion_de_interes():
         st.write(f"- **{vacante['Cargo']}** en {vacante['Empresa']}{cerrada}")
 
 
+def actualizar_recomendaciones(forzar):
+    """Pide recomendaciones sin que el usuario las busque (#25).
+
+    El agente se llama solo la primera vez y cuando cambian el perfil o los criterios,
+    o aparecen vacantes candidatas nuevas. Si solo salieron candidatas (porque el
+    usuario las decidió, guardó o se postuló), se quitan de la lista sin llamarlo.
+    """
+    exito, preparado = prepararRecomendaciones(correo_actual())
+    if not exito:
+        st.session_state["resultado_recomendaciones"] = {
+            "respuesta": (False, preparado), "recomendaciones": [], "total": 0, "base": None, "candidatas": set()}
+        return
+
+    candidatas = {v["Id_vacante"] for v in preparado["candidatas"]}
+    anterior = st.session_state.get("resultado_recomendaciones")
+    if (
+        not forzar
+        and anterior is not None
+        and anterior["base"] == preparado["base"]
+        and candidatas <= anterior["candidatas"]
+    ):
+        anterior["recomendaciones"] = [
+            r for r in anterior["recomendaciones"] if r["vacante"]["Id_vacante"] in candidatas
+        ]
+        return
+
+    with st.spinner("El agente está actualizando tus recomendaciones..."):
+        exito, datos = generarRecomendaciones(correo_actual(), preparado)
+    recomendaciones = datos["recomendaciones"] if exito else []
+    st.session_state["resultado_recomendaciones"] = {
+        "respuesta": (exito, datos),
+        "recomendaciones": list(recomendaciones),
+        "total": len(recomendaciones),
+        "base": preparado["base"],
+        "candidatas": candidatas,
+    }
+
+
 def mostrar_pantalla_recomendaciones():
     st.title("Vacantes recomendadas")
+    st.caption(
+        "El agente revisa tu perfil y tus criterios y te sugiere vacantes sin que tengas que "
+        "buscarlas. Se actualizan solas cuando cambias tu perfil o se publican vacantes nuevas."
+    )
 
     mensaje = st.session_state.pop("mensaje_recomendaciones", None)
     if mensaje:
@@ -178,15 +268,8 @@ def mostrar_pantalla_recomendaciones():
 
     seccion_criterios()
 
-    if st.button("Buscar recomendaciones", type="primary"):
-        with st.spinner("El agente está revisando tu perfil y las vacantes..."):
-            exito, datos = generarRecomendaciones(correo_actual())
-        recomendaciones = datos["recomendaciones"] if exito else []
-        st.session_state["resultado_recomendaciones"] = {
-            "respuesta": (exito, datos),
-            "recomendaciones": list(recomendaciones),
-            "total": len(recomendaciones),
-        }
+    forzar = st.button("Actualizar recomendaciones")
+    actualizar_recomendaciones(forzar)
 
     seccion_resultado()
     seccion_de_interes()
