@@ -132,6 +132,31 @@ CREATE TABLE IF NOT EXISTS `Progent_Usuarios`.`Vacantes` (
   PRIMARY KEY (`Id_vacante`))
 ENGINE = InnoDB;
 
+
+-- -----------------------------------------------------
+-- Table `Progent_Usuarios`.`Postulaciones`
+-- -----------------------------------------------------
+CREATE TABLE IF NOT EXISTS `Progent_Usuarios`.`Postulaciones` (
+  `Id_postulacion` INT NOT NULL AUTO_INCREMENT,
+  `Correos_postulacion` VARCHAR(200) NOT NULL,
+  `Id_vacante_postulacion` INT NOT NULL,
+  `Fecha_postulacion` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `Estado` ENUM('Postulado', 'En revision', 'Entrevista', 'Oferta', 'Rechazado', 'Retirado') NOT NULL DEFAULT 'Postulado',
+  PRIMARY KEY (`Id_postulacion`),
+  UNIQUE INDEX `Usuario_vacante_UNIQUE` (`Correos_postulacion` ASC, `Id_vacante_postulacion` ASC) VISIBLE,
+  INDEX `Id_vacante_idx` (`Id_vacante_postulacion` ASC) VISIBLE,
+  CONSTRAINT `Correos_postulacion`
+    FOREIGN KEY (`Correos_postulacion`)
+    REFERENCES `Progent_Usuarios`.`Usuarios` (`Correos`)
+    ON DELETE CASCADE
+    ON UPDATE CASCADE,
+  CONSTRAINT `Id_vacante_postulacion`
+    FOREIGN KEY (`Id_vacante_postulacion`)
+    REFERENCES `Progent_Usuarios`.`Vacantes` (`Id_vacante`)
+    ON DELETE CASCADE
+    ON UPDATE CASCADE)
+ENGINE = InnoDB;
+
 USE `Progent_Usuarios` ;
 
 -- -----------------------------------------------------

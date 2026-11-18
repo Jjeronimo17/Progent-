@@ -1,5 +1,6 @@
 import streamlit as st
 
+from postulaciones import consultarPostulacion, registrarPostulacion
 from vacantes import consultarVacante, consultarVacantes
 
 
@@ -68,7 +69,47 @@ def mostrar_listado_vacantes():
         mostrar_tarjeta_vacante(vacante)
 
 
+def postularse(id_vacante):
+    # Se ejecuta con on_click, antes de volver a dibujar la página.
+    correo = st.session_state["usuario_logueado"]
+    exito, mensaje = registrarPostulacion(correo, id_vacante)
+    st.session_state["resultado_postulacion"] = (id_vacante, exito, mensaje)
+
+
+def seccion_postulacion(id_vacante, resultado_postulacion):
+    if resultado_postulacion and resultado_postulacion[0] == id_vacante:
+        _, exito, mensaje = resultado_postulacion
+        if exito:
+            st.success(mensaje)
+        else:
+            st.warning(mensaje)
+
+    exito, postulacion = consultarPostulacion(
+        st.session_state["usuario_logueado"], id_vacante
+    )
+    if not exito:
+        st.error(postulacion)
+        return
+
+    if postulacion:
+        st.info(
+            f"Ya te postulaste a esta vacante el "
+            f"{postulacion['Fecha_postulacion']:%d/%m/%Y}."
+        )
+        return
+
+    st.button(
+        "Postularme",
+        type="primary",
+        use_container_width=True,
+        on_click=postularse,
+        args=(id_vacante,),
+    )
+
+
 def mostrar_detalle_vacante(id_vacante):
+    # El resultado de "Postularme" se muestra una sola vez y solo en su vacante.
+    resultado_postulacion = st.session_state.pop("resultado_postulacion", None)
     exito, vacante = consultarVacante(id_vacante)
 
     if not exito:
@@ -101,13 +142,7 @@ def mostrar_detalle_vacante(id_vacante):
     st.subheader("Requisitos")
     st.write(vacante["Requisitos"])
 
-    st.button(
-        "Postularme",
-        type="primary",
-        use_container_width=True,
-        disabled=True,
-        help="Disponible próximamente.",
-    )
+    seccion_postulacion(vacante["Id_vacante"], resultado_postulacion)
 
     boton_volver_listado()
 
