@@ -8,6 +8,8 @@ load_dotenv()
 
 FALTA_DATOS_BASICOS = "Tus datos básicos (nombre, correo de contacto, ubicación y ocupación)."
 FALTA_EXPERIENCIA_O_EDUCACION = "Al menos una experiencia laboral o una educación."
+# Etapas de una postulación, en el orden del proceso (iguales al ENUM de la base).
+ESTADOS = ["Postulado", "En revision", "Entrevista", "Oferta", "Rechazado", "Retirado"]
 
 
 def conectar():
@@ -161,7 +163,10 @@ def consultarPostulaciones(correo):
                 "SELECT p.Id_postulacion, p.Fecha_postulacion, p.Estado, p.Fecha_actualizacion, "
                 "v.Id_vacante, v.Cargo, v.Empresa, v.Ubicacion, v.Descripcion, "
                 "v.Requisitos, v.Fecha_publicacion, v.Estado AS Estado_vacante, "
-                "c.Nombre_archivo AS Cv "
+                "c.Nombre_archivo AS Cv, "
+                "(SELECT h.Estado_anterior FROM Historial_estados h "
+                "WHERE h.Id_postulacion_historial = p.Id_postulacion "
+                "ORDER BY h.Id_historial DESC LIMIT 1) AS Estado_para_deshacer "
                 "FROM Postulaciones p "
                 "JOIN Vacantes v ON v.Id_vacante = p.Id_vacante_postulacion "
                 "LEFT JOIN Cv_postulacion c ON c.Id_postulacion_cv = p.Id_postulacion "
@@ -174,6 +179,77 @@ def consultarPostulaciones(correo):
     except Error as e:
         print(f"Fallo en las operaciones de arriba {e}")
         return False, "No se pudieron cargar tus postulaciones, intente de nuevo"
+    finally:
+        if "conexion" in locals() and conexion.is_connected():
+            cursor.close()
+            conexion.close()
+
+
+def cambiarEstado(correo, id_postulacion, estado_nuevo):
+    """El usuario reporta en qué etapa va su proceso (decisión 5). Guarda el cambio en el historial."""
+    if estado_nuevo not in ESTADOS:
+        return False, "Ese estado no existe."
+    try:
+        conexion = conectar()
+        if conexion.is_connected():
+            cursor = conexion.cursor()
+            cursor.execute(
+                "SELECT Estado FROM Postulaciones WHERE Id_postulacion = %s AND Correos_postulacion = %s",
+                (id_postulacion, correo),
+            )
+            fila = cursor.fetchone()
+            if fila is None:
+                return False, "Esta postulación no existe."
+            if fila[0] == estado_nuevo:
+                return False, "La postulación ya está en esa etapa."
+            cursor.execute(
+                "UPDATE Postulaciones SET Estado = %s, Fecha_actualizacion = NOW() WHERE Id_postulacion = %s",
+                (estado_nuevo, id_postulacion),
+            )
+            cursor.execute(
+                "INSERT INTO Historial_estados(Id_postulacion_historial, Estado_anterior, Estado_nuevo) "
+                "VALUES (%s, %s, %s)",
+                (id_postulacion, fila[0], estado_nuevo),
+            )
+            conexion.commit()
+            return True, "Estado actualizado."
+        return False, "No se pudo conectar a la base de datos, intente de nuevo"
+    except Error as e:
+        print(f"Fallo en las operaciones de arriba {e}")
+        return False, "No se pudo actualizar el estado, intente de nuevo"
+    finally:
+        if "conexion" in locals() and conexion.is_connected():
+            cursor.close()
+            conexion.close()
+
+
+def deshacerUltimoCambio(correo, id_postulacion):
+    """Vuelve a la etapa anterior al último cambio y lo quita del historial."""
+    try:
+        conexion = conectar()
+        if conexion.is_connected():
+            cursor = conexion.cursor()
+            cursor.execute(
+                "SELECT h.Id_historial, h.Estado_anterior FROM Historial_estados h "
+                "JOIN Postulaciones p ON p.Id_postulacion = h.Id_postulacion_historial "
+                "WHERE h.Id_postulacion_historial = %s AND p.Correos_postulacion = %s "
+                "ORDER BY h.Id_historial DESC LIMIT 1",
+                (id_postulacion, correo),
+            )
+            ultimo = cursor.fetchone()
+            if ultimo is None:
+                return False, "No hay cambios para deshacer."
+            cursor.execute(
+                "UPDATE Postulaciones SET Estado = %s, Fecha_actualizacion = NOW() WHERE Id_postulacion = %s",
+                (ultimo[1], id_postulacion),
+            )
+            cursor.execute("DELETE FROM Historial_estados WHERE Id_historial = %s", (ultimo[0],))
+            conexion.commit()
+            return True, "Deshiciste el último cambio."
+        return False, "No se pudo conectar a la base de datos, intente de nuevo"
+    except Error as e:
+        print(f"Fallo en las operaciones de arriba {e}")
+        return False, "No se pudo deshacer el cambio, intente de nuevo"
     finally:
         if "conexion" in locals() and conexion.is_connected():
             cursor.close()
