@@ -1,5 +1,8 @@
 import streamlit as st
 
+from MejorasCvFront import mostrar_mejorar_cv
+from PerfilFront import mostrar_formulario_perfil
+
 
 def mostrar_eleccion_perfil():
     st.title("¿Cómo quieres empezar tu perfil?")
@@ -12,6 +15,11 @@ def mostrar_eleccion_perfil():
         ("linkedin", "Importar desde LinkedIn", "Sube el .zip que exporta LinkedIn."),
         ("cv", "Subir mi hoja de vida (PDF)", "El agente extrae tus datos del PDF."),
         ("manual", "Llenar mi perfil manualmente", "Escribe tus datos paso a paso."),
+        (
+            "mejorar",
+            "Mejorar mi hoja de vida",
+            "El agente compara tu perfil con las vacantes que te interesan y te sugiere mejoras.",
+        ),
     ]
 
     for clave, titulo, descripcion in opciones:
@@ -65,8 +73,19 @@ def mostrar_subir_cv():
 
 def mostrar_llenar_manual():
     st.title("Llena tu perfil")
-    st.info("Esta pantalla todavía no está construida (Paso 5 del wireframe).")
+    st.caption("Los campos con * son obligatorios.")
+    mostrar_formulario_perfil(st.session_state["usuario_logueado"])
 
+    st.divider()
+    if st.button("← Volver"):
+        st.session_state["modo_perfil"] = None
+        st.rerun()
+
+
+def mostrar_pantalla_mejorar():
+    mostrar_mejorar_cv()
+
+    st.divider()
     if st.button("← Volver"):
         st.session_state["modo_perfil"] = None
         st.rerun()
@@ -83,3 +102,5 @@ def mostrar_pantalla_perfil():
         mostrar_subir_cv()
     elif modo == "manual":
         mostrar_llenar_manual()
+    elif modo == "mejorar":
+        mostrar_pantalla_mejorar()
