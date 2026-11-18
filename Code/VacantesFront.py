@@ -3,6 +3,7 @@ import streamlit as st
 from alertas import guardarAlerta
 from guardadas import estaGuardada, guardarVacante, quitarVacanteGuardada
 from NotificacionesFront import describir_alerta
+from PostulacionesFront import seccion_carta
 from postulaciones import consultarPostulacion, registrarPostulacion
 from vacantes import consultarUbicaciones, consultarVacante, consultarVacantes
 
@@ -196,6 +197,8 @@ def seccion_postulacion(id_vacante, resultado_postulacion):
             f"{postulacion['Fecha_postulacion']:%d/%m/%Y}."
         )
         st.button("Ver en mis postulaciones", on_click=ir_a_mis_postulaciones)
+        st.markdown("**Carta de presentación** (opcional)")
+        seccion_carta(postulacion["Id_postulacion"])
         return
 
     st.button(
