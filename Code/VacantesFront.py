@@ -38,17 +38,32 @@ def mostrar_tarjeta_vacante(vacante):
 def mostrar_listado_vacantes():
     st.title("Vacantes disponibles")
 
-    exito, resultado = consultarVacantes()
+    palabra_clave = st.text_input(
+        "Buscar por palabra clave",
+        placeholder="Ej.: Python, analista, remoto",
+        help="Busca en el cargo y en la descripción. Borra el texto para ver todas.",
+    ).strip()
+
+    exito, resultado = consultarVacantes(palabra_clave)
 
     if not exito:
         st.error(resultado)
         return
 
     if not resultado:
-        st.info("Por ahora no hay vacantes disponibles. Vuelve a revisar más tarde.")
+        if palabra_clave:
+            st.info(f"Sin resultados para «{palabra_clave}». Prueba con otra palabra.")
+        else:
+            st.info("Por ahora no hay vacantes disponibles. Vuelve a revisar más tarde.")
         return
 
-    st.caption(f"{len(resultado)} vacantes disponibles")
+    cantidad = len(resultado)
+    if palabra_clave:
+        verbo = "vacante coincide" if cantidad == 1 else "vacantes coinciden"
+        st.caption(f"{cantidad} {verbo} con «{palabra_clave}»")
+    else:
+        sustantivo = "vacante disponible" if cantidad == 1 else "vacantes disponibles"
+        st.caption(f"{cantidad} {sustantivo}")
     for vacante in resultado:
         mostrar_tarjeta_vacante(vacante)
 
