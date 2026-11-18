@@ -1,6 +1,8 @@
 import streamlit as st
 
+from datosUsuario import consultarArchivo
 from GenerarCvFront import mostrar_generar_cv
+from ImportarPerfilFront import mostrar_importar_linkedin, mostrar_subir_cv
 from MejorasCvFront import mostrar_mejorar_cv
 from PerfilFront import mostrar_formulario_perfil
 
@@ -13,8 +15,16 @@ def mostrar_eleccion_perfil():
     )
 
     opciones = [
-        ("linkedin", "Importar desde LinkedIn", "Sube el .zip que exporta LinkedIn."),
-        ("cv", "Subir mi hoja de vida (PDF)", "El agente extrae tus datos del PDF."),
+        (
+            "linkedin",
+            "Importar desde LinkedIn",
+            "Sube el PDF de tu perfil (en LinkedIn: Más → Guardar en PDF) y el agente lo lee.",
+        ),
+        (
+            "cv",
+            "Subir mi hoja de vida (PDF o Word)",
+            "Guárdala en tu perfil y, si quieres, el agente extrae tus datos.",
+        ),
         ("manual", "Llenar mi perfil manualmente", "Escribe tus datos paso a paso."),
         (
             "mejorar",
@@ -32,6 +42,11 @@ def mostrar_eleccion_perfil():
         with st.container(border=True):
             st.subheader(titulo)
             st.caption(descripcion)
+            if clave == "cv":
+                # La hoja de vida guardada queda visible al volver a Mi perfil (#5).
+                exito, cv = consultarArchivo(st.session_state["usuario_logueado"])
+                if exito and cv:
+                    st.caption(f"Hoja de vida guardada: {cv[1]}")
             if st.button("Continuar", key=f"opcion_{clave}", use_container_width=True):
                 st.session_state["modo_perfil"] = clave
                 st.rerun()
@@ -39,40 +54,6 @@ def mostrar_eleccion_perfil():
     st.divider()
     if st.button("Cerrar sesión"):
         st.session_state["usuario_logueado"] = None
-        st.session_state["modo_perfil"] = None
-        st.rerun()
-
-
-def mostrar_importar_linkedin():
-    st.title("Importar desde LinkedIn")
-    st.write(
-        "1. Descarga tu archivo de datos desde LinkedIn "
-        "(Ajustes → Obtener copia de tus datos).\n"
-        "2. Sube aquí el archivo .zip exportado."
-    )
-
-    archivo = st.file_uploader("Arrastra el archivo .zip aquí", type="zip")
-
-    if archivo is not None:
-        st.success(f"Archivo recibido: {archivo.name}")
-        st.info("Pendiente: conectar con el agente que procesa el .zip de LinkedIn.")
-
-    if st.button("← Volver"):
-        st.session_state["modo_perfil"] = None
-        st.rerun()
-
-
-def mostrar_subir_cv():
-    st.title("Sube tu hoja de vida")
-    st.caption("Formato PDF, máx. 10 MB. El agente extraerá tus datos automáticamente.")
-
-    archivo = st.file_uploader("Arrastra tu PDF aquí", type="pdf")
-
-    if archivo is not None:
-        st.success(f"Archivo recibido: {archivo.name}")
-        st.info("Pendiente: conectar con el agente de graph.py (leer_pdf / extraer).")
-
-    if st.button("← Volver"):
         st.session_state["modo_perfil"] = None
         st.rerun()
 
