@@ -1,5 +1,6 @@
 import streamlit as st
 
+from guardadas import estaGuardada, guardarVacante, quitarVacanteGuardada
 from postulaciones import consultarPostulacion, registrarPostulacion
 from vacantes import consultarUbicaciones, consultarVacante, consultarVacantes
 
@@ -174,9 +175,37 @@ def seccion_postulacion(id_vacante, resultado_postulacion):
     )
 
 
+def cambiar_guardada(id_vacante, guardada):
+    # Se ejecuta con on_click: guarda o quita la vacante antes de volver a dibujar.
+    correo = st.session_state["usuario_logueado"]
+    if guardada:
+        exito, mensaje = quitarVacanteGuardada(correo, id_vacante)
+    else:
+        exito, mensaje = guardarVacante(correo, id_vacante)
+    st.session_state["resultado_guardar"] = (id_vacante, exito, mensaje)
+
+
+def seccion_guardar(id_vacante, resultado_guardar):
+    if resultado_guardar and resultado_guardar[0] == id_vacante:
+        _, exito, mensaje = resultado_guardar
+        (st.success if exito else st.error)(mensaje)
+
+    exito, guardada = estaGuardada(st.session_state["usuario_logueado"], id_vacante)
+    if not exito:
+        st.error(guardada)
+        return
+    st.button(
+        "Quitar de guardadas" if guardada else "Guardar vacante",
+        key=f"guardar_{id_vacante}",
+        on_click=cambiar_guardada,
+        args=(id_vacante, guardada),
+    )
+
+
 def mostrar_detalle_vacante(id_vacante):
     # El resultado de "Postularme" se muestra una sola vez y solo en su vacante.
     resultado_postulacion = st.session_state.pop("resultado_postulacion", None)
+    resultado_guardar = st.session_state.pop("resultado_guardar", None)
     exito, vacante = consultarVacante(id_vacante)
 
     if not exito:
@@ -203,6 +232,7 @@ def mostrar_detalle_vacante(id_vacante):
         f"{vacante['Fecha_publicacion']:%d/%m/%Y}"
     )
     st.write(texto_salario_modalidad(vacante))
+    seccion_guardar(vacante["Id_vacante"], resultado_guardar)
 
     st.subheader("Descripción")
     st.write(vacante["Descripcion"])
