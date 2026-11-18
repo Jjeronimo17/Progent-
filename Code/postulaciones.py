@@ -96,13 +96,18 @@ def registrarPostulacion(correo, id_vacante):
             )
             cursor.execute(insertar, (correo, id_vacante))
             conexion.commit()
-            return True, "Tu postulación quedó registrada."
-        return False, "No se pudo conectar a la base de datos, intente de nuevo"
+            return True, "Tu postulación quedó registrada en tu panel de seguimiento."
+        return False, (
+            "No se pudo conectar a la base de datos y tu postulación **no** quedó "
+            "registrada. Intenta de nuevo."
+        )
     except Error as e:
         if e.errno == 1062:
             return False, "Ya te postulaste a esta vacante."
         print(f"Fallo en las operaciones de arriba {e}")
-        return False, "No se pudo registrar tu postulación, intente de nuevo"
+        return False, (
+            "Ocurrió un error y tu postulación **no** quedó registrada. Intenta de nuevo."
+        )
     finally:
         if "conexion" in locals() and conexion.is_connected():
             cursor.close()

@@ -76,11 +76,20 @@ def postularse(id_vacante):
     st.session_state["resultado_postulacion"] = (id_vacante, exito, mensaje)
 
 
+def ir_a_mis_postulaciones():
+    # Cambia la opción del menú lateral (key "seccion" en main.py).
+    st.session_state["seccion"] = "Mis postulaciones"
+
+
 def seccion_postulacion(id_vacante, resultado_postulacion):
     if resultado_postulacion and resultado_postulacion[0] == id_vacante:
         _, exito, mensaje = resultado_postulacion
         if exito:
             st.success(mensaje)
+            st.caption(
+                "Progent guarda tu postulación para que le hagas seguimiento, "
+                "pero no la envía al portal de la empresa."
+            )
         else:
             st.warning(mensaje)
 
@@ -96,6 +105,7 @@ def seccion_postulacion(id_vacante, resultado_postulacion):
             f"Ya te postulaste a esta vacante el "
             f"{postulacion['Fecha_postulacion']:%d/%m/%Y}."
         )
+        st.button("Ver en mis postulaciones", on_click=ir_a_mis_postulaciones)
         return
 
     st.button(
