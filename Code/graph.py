@@ -323,6 +323,104 @@ def recomendar_vacantes(perfil, preferencias, vacantes) -> EstadoRecomendacion:
     )
 
 
+# ==========================================================================
+# Agente que completa formularios de postulación (historia #19)
+#
+# Flujo:  interpretar_formulario  ->  validar_formulario  ->  END
+#
+# Recibe el perfil SIN datos personales (decisión 6). Los campos personales
+# solo se marcan; formularios.py los llena localmente con el perfil.
+# ==========================================================================
+from prompts import DATOS_PERSONALES, SYSTEM_FORMULARIO, USER_FORMULARIO
+
+
+class EstadoFormulario(TypedDict, total=False):
+    """Estado que viaja por el grafo del formulario."""
+
+    formulario: str
+    perfil: dict[str, Any]
+    campos: list[dict[str, Any]]
+    errores: list[str]
+
+
+def interpretar_formulario(estado: EstadoFormulario) -> EstadoFormulario:
+    errores = list(estado.get("errores", []))
+    mensaje = USER_FORMULARIO.format(
+        perfil=json.dumps(estado["perfil"], ensure_ascii=False, indent=2),
+        formulario=estado["formulario"],
+    )
+    try:
+        respuesta = cliente.messages.create(
+            model=MODELO,
+            max_tokens=4000,
+            system=SYSTEM_FORMULARIO,
+            messages=[{"role": "user", "content": mensaje}],
+        )
+    except anthropic.APIError as e:
+        print(f"Fallo en la llamada al modelo {e}")
+        errores.append("El agente no respondió. Intenta de nuevo en unos minutos.")
+        return {"errores": errores}
+
+    texto = "\n".join(b.text for b in respuesta.content if b.type == "text")
+    try:
+        campos = leer_json_modelo(texto).get("campos")
+    except json.JSONDecodeError:
+        errores.append("El agente devolvió una respuesta que no se pudo leer. Intenta de nuevo.")
+        return {"errores": errores}
+    if not isinstance(campos, list):
+        errores.append("El agente devolvió una respuesta incompleta. Intenta de nuevo.")
+        return {"errores": errores}
+    return {"campos": campos}
+
+
+def validar_formulario(estado: EstadoFormulario) -> EstadoFormulario:
+    """Normaliza cada campo; lo que no se entiende pasa a 'no_sabe' (lo llena el usuario)."""
+    if estado.get("errores"):
+        return {}
+    validos = []
+    for c in estado.get("campos", []):
+        if not isinstance(c, dict) or not str(c.get("pregunta") or "").strip():
+            continue
+        campo = {
+            "pregunta": str(c["pregunta"]).strip(),
+            "tipo": c.get("tipo"),
+            "respuesta": str(c.get("respuesta") or "").strip(),
+            "seguro": c.get("seguro") is True,
+            "dato_personal": c.get("dato_personal"),
+            "nota": str(c.get("nota") or "").strip(),
+        }
+        if campo["tipo"] == "dato_personal" and campo["dato_personal"] in DATOS_PERSONALES:
+            campo["respuesta"] = ""  # el valor real lo pone Progent, nunca el modelo
+        elif campo["tipo"] == "respuesta" and campo["respuesta"]:
+            pass
+        else:
+            campo["tipo"] = "no_sabe"
+            campo["respuesta"] = ""
+            campo["nota"] = campo["nota"] or "El agente no supo cómo llenar este campo."
+        validos.append(campo)
+    if not validos:
+        return {"errores": ["El agente no encontró preguntas en el formulario. Revisa el texto."]}
+    return {"campos": validos}
+
+
+def construir_grafo_formulario():
+    g = StateGraph(EstadoFormulario)
+    g.add_node("interpretar_formulario", interpretar_formulario)
+    g.add_node("validar_formulario", validar_formulario)
+    g.set_entry_point("interpretar_formulario")
+    g.add_edge("interpretar_formulario", "validar_formulario")
+    g.add_edge("validar_formulario", END)
+    return g.compile()
+
+
+grafo_formulario = construir_grafo_formulario()
+
+
+def completar_formulario(formulario: str, perfil: dict) -> EstadoFormulario:
+    """Punto de entrada usado por formularios.py."""
+    return grafo_formulario.invoke({"formulario": formulario, "perfil": perfil, "errores": []})
+
+
 if __name__ == "__main__":
     import sys
 
