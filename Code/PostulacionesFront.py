@@ -162,6 +162,9 @@ def mostrar_panel_postulaciones():
             st.write(f"**{postulacion['Empresa']}** · {postulacion['Ubicacion']}")
             st.write(f"Estado: **{etiqueta_estado(postulacion['Estado'])}**")
             st.caption(f"Te postulaste el {postulacion['Fecha_postulacion']:%d/%m/%Y}")
+            st.caption(
+                f"Hoja de vida: {postulacion['Cv']}" if postulacion["Cv"] else "Sin hoja de vida asociada"
+            )
             mostrar_informacion_vacante(postulacion)
             with st.expander("Carta de presentación"):
                 seccion_carta(postulacion["Id_postulacion"])

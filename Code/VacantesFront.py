@@ -1,6 +1,8 @@
 import streamlit as st
 
 from alertas import guardarAlerta
+from datosUsuario import consultarArchivo
+from documentos import guardarCvPerfil
 from guardadas import estaGuardada, guardarVacante, quitarVacanteGuardada
 from NotificacionesFront import describir_alerta
 from PostulacionesFront import seccion_carta
@@ -196,11 +198,53 @@ def seccion_postulacion(id_vacante, resultado_postulacion):
             f"Ya te postulaste a esta vacante el "
             f"{postulacion['Fecha_postulacion']:%d/%m/%Y}."
         )
+        if postulacion["Cv"]:
+            st.write(f"Hoja de vida asociada a esta postulación: **{postulacion['Cv']}**")
+        else:
+            st.caption("Esta postulación no tiene hoja de vida asociada.")
         st.button("Ver en mis postulaciones", on_click=ir_a_mis_postulaciones)
         st.markdown("**Carta de presentación** (opcional)")
         seccion_carta(postulacion["Id_postulacion"])
         return
 
+    seccion_hoja_de_vida(id_vacante)
+
+
+def seccion_hoja_de_vida(id_vacante):
+    """Antes de postularse: elegir la hoja de vida guardada o cargarla si no hay (#20)."""
+    correo = st.session_state["usuario_logueado"]
+    mensaje = st.session_state.pop("mensaje_cv", None)
+    if mensaje:
+        exito, texto = mensaje
+        (st.success if exito else st.error)(texto)
+
+    exito, cv = consultarArchivo(correo)
+    if not exito:
+        st.error(cv)
+        return
+
+    if cv is None:
+        st.info(
+            "Para postularte necesitas tu hoja de vida. Cárgala aquí: quedará guardada "
+            "en tu perfil para tus próximas postulaciones."
+        )
+        numero = st.session_state.get("cargas_cv", 0)
+        archivo = st.file_uploader("Tu hoja de vida (PDF o Word, máx. 5 MB)", key=f"cv_{numero}")
+        if st.button("Guardar hoja de vida", disabled=archivo is None):
+            exito, texto = guardarCvPerfil(correo, archivo.name, archivo.getvalue())
+            st.session_state["mensaje_cv"] = (exito, texto)
+            if exito:
+                st.session_state["cargas_cv"] = numero + 1
+            st.rerun()
+    else:
+        # Columnas de archivos_usuarios: Correos_usuarios, nombre_archivo, tipo, archivo_bytes
+        st.radio(
+            "Hoja de vida para esta postulación",
+            [cv[1]],
+            format_func=lambda nombre: f"{nombre} (guardada en tu perfil)",
+            key=f"cv_elegido_{id_vacante}",
+        )
+    # "Postularme" siempre se ve (#10); sin hoja de vida, el intento pide cargarla (#20).
     st.button(
         "Postularme",
         type="primary",
