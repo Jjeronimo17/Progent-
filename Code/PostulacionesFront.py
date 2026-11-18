@@ -2,7 +2,7 @@ import streamlit as st
 
 from documentos import consultarCarta, guardarCarta
 from formularios import consultarRespuestas, generarRespuestas, guardarRespuestas, leerFormulario
-from postulaciones import consultarPostulaciones
+from postulaciones import ESTADOS, cambiarEstado, consultarPostulaciones, deshacerUltimoCambio
 
 # En la base los estados van sin tilde, como los demás ENUM del modelo.
 ETIQUETAS_ESTADO = {"En revision": "En revisión"}
@@ -147,6 +147,46 @@ def seccion_formulario(id_postulacion):
         st.rerun()
 
 
+def guardar_estado(id_postulacion):
+    # Se ejecuta con on_click: lee el selector y guarda el nuevo estado.
+    nuevo = st.session_state[f"estado_{id_postulacion}"]
+    exito, mensaje = cambiarEstado(st.session_state["usuario_logueado"], id_postulacion, nuevo)
+    if exito:
+        mensaje = f"Estado actualizado a «{etiqueta_estado(nuevo)}»."
+    st.session_state[f"mensaje_estado_{id_postulacion}"] = (exito, mensaje)
+
+
+def deshacer_estado(id_postulacion):
+    exito, mensaje = deshacerUltimoCambio(st.session_state["usuario_logueado"], id_postulacion)
+    st.session_state[f"mensaje_estado_{id_postulacion}"] = (exito, mensaje)
+
+
+def seccion_estado(postulacion):
+    """Cambiar a mano la etapa de la postulación y deshacer el último cambio (#22)."""
+    id_postulacion = postulacion["Id_postulacion"]
+    mensaje = st.session_state.pop(f"mensaje_estado_{id_postulacion}", None)
+    if mensaje:
+        exito, texto = mensaje
+        (st.success if exito else st.warning)(texto)
+    # El selector arranca en el estado guardado y se reinicia solo cuando ese estado
+    # cambia (al guardar o deshacer); así no se pierde lo que el usuario está eligiendo.
+    clave, base = f"estado_{id_postulacion}", f"estado_base_{id_postulacion}"
+    if clave not in st.session_state or st.session_state.get(base) != postulacion["Estado"]:
+        st.session_state[clave] = postulacion["Estado"]
+        st.session_state[base] = postulacion["Estado"]
+    st.selectbox("Nueva etapa", ESTADOS, format_func=etiqueta_estado, key=clave)
+    st.button("Guardar estado", key=f"guardar_estado_{id_postulacion}",
+              on_click=guardar_estado, args=(id_postulacion,))
+    anterior = postulacion["Estado_para_deshacer"]
+    if anterior:
+        st.button(
+            f"Deshacer último cambio (volver a «{etiqueta_estado(anterior)}»)",
+            key=f"deshacer_estado_{id_postulacion}",
+            on_click=deshacer_estado,
+            args=(id_postulacion,),
+        )
+
+
 def mostrar_panel_postulaciones():
     st.title("Mis postulaciones")
 
@@ -170,6 +210,8 @@ def mostrar_panel_postulaciones():
                 f"Hoja de vida: {postulacion['Cv']}" if postulacion["Cv"] else "Sin hoja de vida asociada"
             )
             mostrar_informacion_vacante(postulacion)
+            with st.expander("Actualizar estado"):
+                seccion_estado(postulacion)
             with st.expander("Carta de presentación"):
                 seccion_carta(postulacion["Id_postulacion"])
             with st.expander("Formulario de la vacante"):
