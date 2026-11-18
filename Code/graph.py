@@ -210,13 +210,16 @@ def _texto(valor):
 
 
 def _perfilParaModelo(perfil):
-    """Copia del perfil SIN datos personales ni identificadores internos."""
+    """Copia del perfil SIN datos personales ni identificadores internos (decisión 6).
+
+    Tampoco lleva nombres de empresas ni de instituciones: armarCV los pone
+    localmente, igual que el nombre y el contacto.
+    """
     experiencias = []
     for i, e in enumerate(perfil["experiencia"]):
         experiencias.append({
             "indice": i,
             "cargo": e.get("Titulo_puesto"),
-            "empresa": e.get("Nombre_empresa"),
             "sector": e.get("Sector_industria"),
             "nivel": e.get("Nivel_seniority"),
             "fecha_inicio": e.get("Fecha_inicio"),
@@ -229,7 +232,6 @@ def _perfilParaModelo(perfil):
     estudios = [
         {
             "titulo": e.get("Titulo_Carrera_grado"),
-            "institucion": e.get("Institucion_educativa"),
             "nivel": e.get("Nivel_educacion"),
             "campo": e.get("Campo_Estudio"),
             "estado": e.get("Estado_Estudio"),
@@ -247,37 +249,14 @@ def _perfilParaModelo(perfil):
 def redactarCV(estado: EstadoPerfil) -> EstadoPerfil:
     errores = list(estado.get("errores", []))
     perfil_limpio = _perfilParaModelo(estado["perfil"])
-
-    respuesta = cliente.messages.create(
-        model=MODELO,
-        max_tokens=3000,
-        system=SYSTEM_REDACCION_CV,
-        messages=[
-            {
-                "role": "user",
-                "content": USER_REDACCION_CV.format(
-                    perfil=json.dumps(perfil_limpio, ensure_ascii=False, indent=2, default=str)
-                ),
-            },
-        ],
+    mensaje = USER_REDACCION_CV.format(
+        perfil=json.dumps(perfil_limpio, ensure_ascii=False, indent=2, default=str)
     )
-
-    bloques = [b.text for b in respuesta.content if b.type == "text"]
-    if not bloques:
-        errores.append("El modelo no devolvio texto")
+    # pedir_json_modelo (bloque de #24) maneja los errores de la API y del JSON.
+    redaccion, error = pedir_json_modelo(SYSTEM_REDACCION_CV, mensaje, 3000)
+    if error:
+        errores.append(error)
         return {"errores": errores}
-    crudo = "\n".join(bloques).strip()
-
-    inicio, fin = crudo.find("{"), crudo.rfind("}")
-    if inicio != -1 and fin != -1:
-        crudo = crudo[inicio : fin + 1]
-
-    try:
-        redaccion = json.loads(crudo)
-    except json.JSONDecodeError as e:
-        errores.append(f"El modelo no devolvio JSON valido: {e}")
-        return {"errores": errores}
-
     return {"redaccion": redaccion}
 
 
@@ -504,6 +483,13 @@ grafo_cv = construir_grafo_cv()
 
 
 def generarBorradorCV(correo):
+    """Genera el borrador del CV del usuario (historia #7).
+
+    Retorna (False, mensaje) si algo falla, o (True, resultado) con:
+      - "faltantes": secciones del perfil que faltan; si no está vacía, no se redacta
+      - "cv": el borrador (con "secciones_dudosas"), o None si faltan secciones
+    No guarda nada (decisión 7): el usuario lo confirma, lo edita o lo rechaza.
+    """
     try:
         estado = grafo_cv.invoke({"correo": correo, "errores": []})
     except Exception as e:
@@ -512,13 +498,13 @@ def generarBorradorCV(correo):
 
     if estado.get("errores"):
         print("Errores del grafo:", estado["errores"])
-        return False, "No se pudo generar el CV, intenta de nuevo"
+        return False, estado["errores"][-1]
 
     secciones_faltantes = estado.get("secciones_faltantes") or []
     if secciones_faltantes:
-        return False, "Tu perfil esta incompleto: " + ", ".join(secciones_faltantes)
+        return True, {"faltantes": secciones_faltantes, "cv": None}
 
-    return True, estado["cv"]
+    return True, {"faltantes": [], "cv": estado["cv"]}
 
 
 def generarDocumentoCV(cv):
