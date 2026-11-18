@@ -14,6 +14,10 @@ def etiqueta_estado(estado):
 
 def mostrar_informacion_vacante(postulacion):
     with st.expander("Ver información de la vacante"):
+        st.write(
+            f"Estado actual: **{etiqueta_estado(postulacion['Estado'])}** · última actualización "
+            f"el {postulacion['Fecha_actualizacion']:%d/%m/%Y a las %H:%M}"
+        )
         if postulacion["Estado_vacante"] == "Cerrada":
             st.warning("Esta vacante ya fue cerrada y no recibe más postulaciones.")
         st.markdown("**Descripción**")

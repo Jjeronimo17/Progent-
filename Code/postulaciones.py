@@ -158,7 +158,7 @@ def consultarPostulaciones(correo):
         if conexion.is_connected():
             cursor = conexion.cursor(dictionary=True)
             consulta = (
-                "SELECT p.Id_postulacion, p.Fecha_postulacion, p.Estado, "
+                "SELECT p.Id_postulacion, p.Fecha_postulacion, p.Estado, p.Fecha_actualizacion, "
                 "v.Id_vacante, v.Cargo, v.Empresa, v.Ubicacion, v.Descripcion, "
                 "v.Requisitos, v.Fecha_publicacion, v.Estado AS Estado_vacante, "
                 "c.Nombre_archivo AS Cv "
