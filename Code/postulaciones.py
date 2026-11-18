@@ -144,7 +144,8 @@ def consultarPostulaciones(correo):
             cursor = conexion.cursor(dictionary=True)
             consulta = (
                 "SELECT p.Id_postulacion, p.Fecha_postulacion, p.Estado, "
-                "v.Id_vacante, v.Cargo, v.Empresa, v.Ubicacion "
+                "v.Id_vacante, v.Cargo, v.Empresa, v.Ubicacion, v.Descripcion, "
+                "v.Requisitos, v.Fecha_publicacion, v.Estado AS Estado_vacante "
                 "FROM Postulaciones p "
                 "JOIN Vacantes v ON v.Id_vacante = p.Id_vacante_postulacion "
                 "WHERE p.Correos_postulacion = %s "
