@@ -389,7 +389,7 @@ def extraerLinkedin(estado: EstadoPerfil) -> EstadoPerfil:
         return {"errores": errores}
     crudo = "\n".join(bloques).strip()
     if crudo.startswith("```"):
-        crudo.split("```")[1]
+        crudo = crudo.split("```")[1]
         if crudo.startswith("json"):
             crudo = crudo[4:]
         crudo = crudo.strip()
@@ -585,9 +585,19 @@ def generarDocumentoCV(cv):
 
 
 
+def extraer_perfil_archivo(datos: bytes, tipo: str, origen: str) -> EstadoPerfil:
+    """Punto de entrada de la importación del perfil (historias #4, #5 y #6).
+
+    tipo: "pdf" o "docx". origen: "cv" (hoja de vida) o "linkedin" (PDF del perfil
+    de LinkedIn). Lo usa importarPerfil.py.
+    """
+    clave = "docx_bytes" if tipo == "docx" else "pdf_bytes"
+    return grafo.invoke({clave: datos, "tipo": tipo, "origen": origen, "errores": []})
+
+
 def procesar_cv(pdf_bytes: bytes) -> EstadoPerfil:
-    """Punto de entrada usado por la interfaz."""
-    return grafo.invoke({"pdf_bytes": pdf_bytes, "errores": []})
+    """Punto de entrada de la prueba de concepto (app.py): una hoja de vida en PDF."""
+    return extraer_perfil_archivo(pdf_bytes, "pdf", "cv")
 
 
 # ==========================================================================
