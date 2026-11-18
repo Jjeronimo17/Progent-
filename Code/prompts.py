@@ -279,3 +279,56 @@ Vacantes que le interesan:
 </vacantes_interes>
 
 Devuelve el JSON."""
+
+
+# --------------------------------------------------------------------------
+# Agente que evalúa la compatibilidad con una vacante (historia #26)
+# --------------------------------------------------------------------------
+NIVELES_CUMPLE = ["si", "parcial", "no"]
+
+ESQUEMA_COMPATIBILIDAD = """{
+  "criterios": [
+    {
+      "requisito": string,
+      "cumple": "si" | "parcial" | "no",
+      "dato_perfil": string | null,
+      "seguro": boolean
+    }
+  ],
+  "informacion_suficiente": boolean
+}"""
+
+SYSTEM_COMPATIBILIDAD = f"""Eres el agente de Progent que evalúa qué tan compatible es un usuario con una vacante.
+
+Recibes el perfil profesional del usuario (sin datos personales) y una vacante.
+Divide lo que pide la vacante en requisitos concretos (como máximo 8, sobre todo los
+de "requisitos") y evalúa cada uno contra el perfil.
+
+Para cada requisito:
+- "cumple": "si" si el perfil lo muestra, "parcial" si lo muestra en parte y "no" si no
+  aparece en el perfil.
+- "dato_perfil": el dato del perfil en el que te basaste, en español y breve (por
+  ejemplo "Experiencia como Desarrollador Python, 30 meses"). Es obligatorio si
+  "cumple" es "si" o "parcial". Si es "no", explica qué falta o usa null.
+- "seguro": true solo si el perfil permite decidirlo con claridad. Si tuviste que
+  suponer o aproximar (por ejemplo, años de experiencia o una herramienta que no se
+  nombra), pon false.
+
+"informacion_suficiente" es false si el perfil tiene tan pocos datos que la evaluación
+no es confiable. No calcules un puntaje: Progent lo calcula con tus criterios.
+No inventes datos del usuario ni de la vacante.
+
+Responde únicamente con un JSON válido con esta forma, sin texto adicional:
+{ESQUEMA_COMPATIBILIDAD}"""
+
+USER_COMPATIBILIDAD = """Perfil del usuario:
+<perfil>
+{perfil}
+</perfil>
+
+Vacante:
+<vacante_evaluar>
+{vacante}
+</vacante_evaluar>
+
+Devuelve el JSON."""
