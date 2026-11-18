@@ -202,19 +202,23 @@ def añadirDatosExtraidos(correo, datos):
                 return False, "Ya tienes un perfil creado"
     except Error as e:
         print(f"Fallo en las operaciones de arriba {e}")
+        return False, "No se pudo revisar tu perfil, intente de nuevo"
     finally:
         if "conexion" in locals() and conexion.is_connected():
             cursor.close()
             conexion.close()
+    contacto = datos.get("contacto") or {}
     nombre = datos["nombre_completo"]
-    titulo = datos["titular"]
-    correo_contacto = datos["contacto"]["correo"]
-    telefono_contacto = datos["contacto"]["telefono"]
-    ubicacion = datos["contacto"]["ciudad"]
+    titulo = datos.get("titular")
+    correo_contacto = contacto.get("correo")
+    telefono_contacto = contacto.get("telefono")
+    ubicacion = contacto.get("ciudad")
     lenguas = []
-    for i in datos["idiomas"]:
-        lenguas.append(i["idioma"])
-    habilidades_tecnicas = ", ".join(datos["habilidades"]) + ", " + ", ".join(lenguas)
+    for i in datos.get("idiomas") or []:
+        if i.get("idioma"):
+            lenguas.append(i["idioma"])
+    # Las habilidades del perfil (y los idiomas) quedan en cada experiencia.
+    habilidades_tecnicas = ", ".join([h for h in datos.get("habilidades") or [] if h] + lenguas)
     añadir_datos, mensajeDat = añadirDatos(
         correo,
         nombre,
@@ -226,18 +230,14 @@ def añadirDatosExtraidos(correo, datos):
     )
     if not añadir_datos:
         return False, "Ocurrio un fallo al intentar cargar la informacion a tu perfil"
-    for experiencia in datos["experiencia"]:
-        formato = "%Y-%m-%d"
-        if experiencia["actual"] == True:
-            fecha_final = None
+    formato = "%Y-%m-%d"
+    for experiencia in datos.get("experiencia") or []:
+        if experiencia.get("actual") or not experiencia.get("fecha_fin"):
             fecha_final_formateada = None
         else:
-            fecha_final = experiencia["fecha_fin"]
-            fecha_final_formateada = datetime.strptime(fecha_final, formato)
-
-        fecha_inicio = experiencia["fecha_inicio"]
-        fecha_inicio_formateada = datetime.strptime(fecha_inicio, formato)
-        añadir_experiencia = añadirExperiencia(
+            fecha_final_formateada = datetime.strptime(experiencia["fecha_fin"], formato)
+        fecha_inicio_formateada = datetime.strptime(experiencia["fecha_inicio"], formato)
+        añadir_experiencia, mensajeExp = añadirExperiencia(
             correo,
             experiencia["empresa"],
             None,
@@ -245,7 +245,7 @@ def añadirDatosExtraidos(correo, datos):
             experiencia["cargo"],
             None,
             fecha_inicio_formateada,
-            experiencia["descripcion"],
+            experiencia.get("descripcion") or "",
             None,
             habilidades_tecnicas,
             None,
@@ -254,23 +254,15 @@ def añadirDatosExtraidos(correo, datos):
             fecha_final_formateada,
         )
         if not añadir_experiencia:
-            return False, "No se pudo añadir correctamente la experiencia(s) al perfil"
-    for educacion in datos["educacion"]:
-        formatoEducacion = "%Y-%m-%d"
-        if educacion["en_curso"] == True:
-            fecha_final_educacion = None
+            return False, f"No se pudo añadir la experiencia «{experiencia['cargo']}»: {mensajeExp}"
+    for educacion in datos.get("educacion") or []:
+        if educacion.get("en_curso") or not educacion.get("fecha_fin"):
             fecha_final_educacion_formateada = None
-            estado_estudio = "Cursando"
+            estado_estudio = "Cursando" if educacion.get("en_curso") else "Graduado"
         else:
-            fecha_final_educacion = educacion["fecha_fin"]
-            fecha_final_educacion_formateada = datetime.strptime(
-                fecha_final_educacion, formatoEducacion
-            )
+            fecha_final_educacion_formateada = datetime.strptime(educacion["fecha_fin"], formato)
             estado_estudio = "Graduado"
-        fecha_inicio_educacion = educacion["fecha_inicio"]
-        fecha_inicio_educacion_formateada = datetime.strptime(
-            fecha_inicio_educacion, formatoEducacion
-        )
+        fecha_inicio_educacion_formateada = datetime.strptime(educacion["fecha_inicio"], formato)
         añadir_educacion, mensajeEdu = añadirEducacion(
             correo,
             educacion["institucion"],
@@ -284,9 +276,8 @@ def añadirDatosExtraidos(correo, datos):
             fecha_final_educacion_formateada,
         )
         if not añadir_educacion:
-            return False, "No se pudo añadir la educacion al perfil"
-        if añadir_educacion and añadir_experiencia and añadir_datos:
-            return True, "Datos agregados correctamente"
+            return False, f"No se pudo añadir la educación «{educacion['titulo']}»: {mensajeEdu}"
+    return True, "Datos agregados correctamente"
 
 
 def guardarArchivos(correo, nombre_archivo, bytes):
