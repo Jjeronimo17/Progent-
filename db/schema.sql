@@ -202,6 +202,29 @@ CREATE TABLE IF NOT EXISTS `Progent_Usuarios`.`Recomendaciones` (
     ON UPDATE CASCADE)
 ENGINE = InnoDB;
 
+-- -----------------------------------------------------
+-- Table `Progent_Usuarios`.`Vacantes_guardadas`
+-- -----------------------------------------------------
+CREATE TABLE IF NOT EXISTS `Progent_Usuarios`.`Vacantes_guardadas` (
+  `Id_guardada` INT NOT NULL AUTO_INCREMENT,
+  `Correos_guardada` VARCHAR(200) NOT NULL,
+  `Id_vacante_guardada` INT NOT NULL,
+  `Fecha_guardada` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (`Id_guardada`),
+  UNIQUE INDEX `Usuario_vacante_guardada_UNIQUE` (`Correos_guardada` ASC, `Id_vacante_guardada` ASC) VISIBLE,
+  INDEX `Id_vacante_guardada_idx` (`Id_vacante_guardada` ASC) VISIBLE,
+  CONSTRAINT `Correos_guardada`
+    FOREIGN KEY (`Correos_guardada`)
+    REFERENCES `Progent_Usuarios`.`Usuarios` (`Correos`)
+    ON DELETE CASCADE
+    ON UPDATE CASCADE,
+  CONSTRAINT `Id_vacante_guardada`
+    FOREIGN KEY (`Id_vacante_guardada`)
+    REFERENCES `Progent_Usuarios`.`Vacantes` (`Id_vacante`)
+    ON DELETE CASCADE
+    ON UPDATE CASCADE)
+ENGINE = InnoDB;
+
 USE `Progent_Usuarios` ;
 
 -- -----------------------------------------------------
