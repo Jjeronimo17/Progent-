@@ -13,7 +13,7 @@ def etiqueta_estado(estado):
 
 
 def mostrar_informacion_vacante(postulacion):
-    with st.expander("Ver información de la vacante"):
+    with st.expander("Ver información de la vacante", key=f"exp_info_{postulacion['Id_postulacion']}"):
         st.write(
             f"Estado actual: **{etiqueta_estado(postulacion['Estado'])}** · última actualización "
             f"el {postulacion['Fecha_actualizacion']:%d/%m/%Y a las %H:%M}"
@@ -147,18 +147,25 @@ def seccion_formulario(id_postulacion):
         st.rerun()
 
 
-def guardar_estado(id_postulacion):
+def guardar_estado(id_postulacion, cargo):
     # Se ejecuta con on_click: lee el selector y guarda el nuevo estado.
     nuevo = st.session_state[f"estado_{id_postulacion}"]
     exito, mensaje = cambiarEstado(st.session_state["usuario_logueado"], id_postulacion, nuevo)
     if exito:
-        mensaje = f"Estado actualizado a «{etiqueta_estado(nuevo)}»."
-    st.session_state[f"mensaje_estado_{id_postulacion}"] = (exito, mensaje)
+        # La tarjeta cambia de grupo (#23), así que el aviso va arriba del panel.
+        st.session_state["mensaje_panel_estado"] = (
+            f"Estado actualizado a «{etiqueta_estado(nuevo)}». «{cargo}» ahora aparece en esa etapa.")
+    else:
+        st.session_state[f"mensaje_estado_{id_postulacion}"] = (exito, mensaje)
 
 
-def deshacer_estado(id_postulacion):
+def deshacer_estado(id_postulacion, cargo, anterior):
     exito, mensaje = deshacerUltimoCambio(st.session_state["usuario_logueado"], id_postulacion)
-    st.session_state[f"mensaje_estado_{id_postulacion}"] = (exito, mensaje)
+    if exito:
+        st.session_state["mensaje_panel_estado"] = (
+            f"{mensaje} «{cargo}» volvió a «{etiqueta_estado(anterior)}».")
+    else:
+        st.session_state[f"mensaje_estado_{id_postulacion}"] = (exito, mensaje)
 
 
 def seccion_estado(postulacion):
@@ -176,19 +183,23 @@ def seccion_estado(postulacion):
         st.session_state[base] = postulacion["Estado"]
     st.selectbox("Nueva etapa", ESTADOS, format_func=etiqueta_estado, key=clave)
     st.button("Guardar estado", key=f"guardar_estado_{id_postulacion}",
-              on_click=guardar_estado, args=(id_postulacion,))
+              on_click=guardar_estado, args=(id_postulacion, postulacion["Cargo"]))
     anterior = postulacion["Estado_para_deshacer"]
     if anterior:
         st.button(
             f"Deshacer último cambio (volver a «{etiqueta_estado(anterior)}»)",
             key=f"deshacer_estado_{id_postulacion}",
             on_click=deshacer_estado,
-            args=(id_postulacion,),
+            args=(id_postulacion, postulacion["Cargo"], anterior),
         )
 
 
 def mostrar_panel_postulaciones():
     st.title("Mis postulaciones")
+
+    aviso = st.session_state.pop("mensaje_panel_estado", None)
+    if aviso:
+        st.success(aviso)
 
     exito, resultado = consultarPostulaciones(st.session_state["usuario_logueado"])
 
@@ -200,19 +211,36 @@ def mostrar_panel_postulaciones():
         st.info("Todavía no te has postulado a ninguna vacante.")
         return
 
+    # Agrupadas por etapa, en el orden del proceso (#23). Dentro de cada etapa, la
+    # más reciente primero. Al cambiar el estado, la postulación pasa sola de grupo.
+    por_etapa = {etapa: [] for etapa in ESTADOS}
     for postulacion in resultado:
-        with st.container(border=True):
-            st.subheader(postulacion["Cargo"])
-            st.write(f"**{postulacion['Empresa']}** · {postulacion['Ubicacion']}")
-            st.write(f"Estado: **{etiqueta_estado(postulacion['Estado'])}**")
-            st.caption(f"Te postulaste el {postulacion['Fecha_postulacion']:%d/%m/%Y}")
-            st.caption(
-                f"Hoja de vida: {postulacion['Cv']}" if postulacion["Cv"] else "Sin hoja de vida asociada"
-            )
-            mostrar_informacion_vacante(postulacion)
-            with st.expander("Actualizar estado"):
-                seccion_estado(postulacion)
-            with st.expander("Carta de presentación"):
-                seccion_carta(postulacion["Id_postulacion"])
-            with st.expander("Formulario de la vacante"):
-                seccion_formulario(postulacion["Id_postulacion"])
+        por_etapa[postulacion["Estado"]].append(postulacion)
+
+    for etapa in ESTADOS:
+        st.markdown(f"#### {etiqueta_estado(etapa)} ({len(por_etapa[etapa])})")
+        if not por_etapa[etapa]:
+            st.caption("Sin postulaciones en esta etapa.")
+        for postulacion in por_etapa[etapa]:
+            mostrar_tarjeta_postulacion(postulacion)
+
+
+def mostrar_tarjeta_postulacion(postulacion):
+    with st.container(border=True):
+        st.subheader(postulacion["Cargo"])
+        st.write(f"**{postulacion['Empresa']}** · {postulacion['Ubicacion']}")
+        st.write(f"Estado: **{etiqueta_estado(postulacion['Estado'])}**")
+        st.caption(f"Te postulaste el {postulacion['Fecha_postulacion']:%d/%m/%Y}")
+        st.caption(
+            f"Hoja de vida: {postulacion['Cv']}" if postulacion["Cv"] else "Sin hoja de vida asociada"
+        )
+        # Los expanders llevan la llave de la postulación: así, cuando la tarjeta cambia
+        # de etapa, lo que estaba abierto se va con ella y no queda abierto en otra.
+        id_postulacion = postulacion["Id_postulacion"]
+        mostrar_informacion_vacante(postulacion)
+        with st.expander("Actualizar estado", key=f"exp_estado_{id_postulacion}"):
+            seccion_estado(postulacion)
+        with st.expander("Carta de presentación", key=f"exp_carta_{id_postulacion}"):
+            seccion_carta(id_postulacion)
+        with st.expander("Formulario de la vacante", key=f"exp_formulario_{id_postulacion}"):
+            seccion_formulario(id_postulacion)
