@@ -1,6 +1,7 @@
 import streamlit as st
 
 from alertas import guardarAlerta
+from CompatibilidadFront import seccion_compatibilidad
 from datosUsuario import consultarArchivo
 from documentos import guardarCvPerfil
 from guardadas import estaGuardada, guardarVacante, quitarVacanteGuardada
@@ -318,6 +319,8 @@ def mostrar_detalle_vacante(id_vacante):
 
     st.subheader("Requisitos")
     st.write(vacante["Requisitos"])
+
+    seccion_compatibilidad(vacante["Id_vacante"])
 
     seccion_postulacion(vacante["Id_vacante"], resultado_postulacion)
 
