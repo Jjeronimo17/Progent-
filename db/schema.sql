@@ -144,6 +144,7 @@ CREATE TABLE IF NOT EXISTS `Progent_Usuarios`.`Postulaciones` (
   `Id_vacante_postulacion` INT NOT NULL,
   `Fecha_postulacion` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
   `Estado` ENUM('Postulado', 'En revision', 'Entrevista', 'Oferta', 'Rechazado', 'Retirado') NOT NULL DEFAULT 'Postulado',
+  `Fecha_actualizacion` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
   PRIMARY KEY (`Id_postulacion`),
   UNIQUE INDEX `Usuario_vacante_UNIQUE` (`Correos_postulacion` ASC, `Id_vacante_postulacion` ASC) VISIBLE,
   INDEX `Id_vacante_idx` (`Id_vacante_postulacion` ASC) VISIBLE,
