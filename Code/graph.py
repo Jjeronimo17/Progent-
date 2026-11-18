@@ -421,6 +421,160 @@ def completar_formulario(formulario: str, perfil: dict) -> EstadoFormulario:
     return grafo_formulario.invoke({"formulario": formulario, "perfil": perfil, "errores": []})
 
 
+# ==========================================================================
+# Agente que sugiere mejoras a la hoja de vida (historia #24)
+#
+# Flujo:  sugerir_mejoras  ->  validar_mejoras  ->  END
+#
+# Recibe el perfil SIN datos personales (decisión 6) y las vacantes que le
+# interesan al usuario. Nada se cambia en el perfil hasta que el usuario
+# aplica una sugerencia (decisión 7); eso lo hace mejorasCv.py.
+# ==========================================================================
+from mejorasCv import separar_habilidades
+from prompts import CAMPOS_MEJORA, SYSTEM_MEJORAS_CV, USER_MEJORAS_CV
+
+
+def pedir_json_modelo(system, mensaje, max_tokens):
+    """Llama al modelo y lee su JSON. Retorna (datos, None) o (None, mensaje de error)."""
+    try:
+        respuesta = cliente.messages.create(
+            model=MODELO,
+            max_tokens=max_tokens,
+            system=system,
+            messages=[{"role": "user", "content": mensaje}],
+        )
+    except anthropic.APIError as e:
+        print(f"Fallo en la llamada al modelo {e}")
+        return None, "El agente no respondió. Intenta de nuevo en unos minutos."
+    texto = "\n".join(b.text for b in respuesta.content if b.type == "text")
+    try:
+        return leer_json_modelo(texto), None
+    except json.JSONDecodeError:
+        return None, "El agente devolvió una respuesta que no se pudo leer. Intenta de nuevo."
+
+
+class EstadoMejoras(TypedDict, total=False):
+    """Estado que viaja por el grafo de mejoras de la hoja de vida."""
+
+    perfil: dict[str, Any]
+    vacantes: list[dict[str, Any]]
+    sugerencias: list[dict[str, Any]]
+    errores: list[str]
+
+
+def sugerir_mejoras(estado: EstadoMejoras) -> EstadoMejoras:
+    errores = list(estado.get("errores", []))
+    vacantes = [
+        {
+            "id_vacante": v["Id_vacante"],
+            "cargo": v["Cargo"],
+            "descripcion": v["Descripcion"],
+            "requisitos": v["Requisitos"],
+        }
+        for v in estado["vacantes"]
+    ]
+    mensaje = USER_MEJORAS_CV.format(
+        perfil=json.dumps(estado["perfil"], ensure_ascii=False, indent=2),
+        vacantes=json.dumps(vacantes, ensure_ascii=False, indent=2),
+    )
+    datos, error = pedir_json_modelo(SYSTEM_MEJORAS_CV, mensaje, 3000)
+    if error:
+        return {"errores": errores + [error]}
+    sugerencias = datos.get("sugerencias")
+    if not isinstance(sugerencias, list):
+        return {"errores": errores + ["El agente devolvió una respuesta incompleta. Intenta de nuevo."]}
+    return {"sugerencias": sugerencias}
+
+
+def validar_mejoras(estado: EstadoMejoras) -> EstadoMejoras:
+    """Deja solo cambios aplicables: campo conocido, experiencia del usuario y texto nuevo."""
+    if estado.get("errores"):
+        return {}
+
+    perfil = estado["perfil"]
+    experiencias = {e["id_experiencia"]: e for e in perfil["experiencia"]}
+    vacantes = {v["Id_vacante"]: v["Cargo"] for v in estado["vacantes"]}
+    validas, vistas = [], set()
+    for s in estado.get("sugerencias", []):
+        if not isinstance(s, dict) or s.get("campo") not in CAMPOS_MEJORA:
+            continue
+        campo = s["campo"]
+        propuesta = str(s.get("propuesta") or "").strip()
+        motivo = str(s.get("motivo") or "").strip()
+        if not propuesta or not motivo:
+            continue
+
+        if campo == "ocupacion":
+            id_experiencia, actual = None, perfil.get("ocupacion") or ""
+        else:
+            try:
+                id_experiencia = int(s.get("id_experiencia"))
+            except (TypeError, ValueError):
+                continue
+            if id_experiencia not in experiencias:
+                continue
+            experiencia = experiencias[id_experiencia]
+            actual = experiencia["funciones"] if campo == "funciones" else experiencia["habilidades"]
+
+        if campo == "habilidades":
+            # Solo las que todavía no tiene (sin importar mayúsculas).
+            tiene = {h.lower() for h in separar_habilidades(actual)}
+            nuevas = []
+            for h in separar_habilidades(propuesta):
+                if h.lower() not in tiene:
+                    tiene.add(h.lower())
+                    nuevas.append(h)
+            if not nuevas:
+                continue
+            propuesta = ", ".join(nuevas)
+        elif propuesta == (actual or "").strip():
+            continue
+
+        if (campo, id_experiencia) in vistas:
+            continue
+        vistas.add((campo, id_experiencia))
+
+        ids_vacantes = []
+        for v in s.get("vacantes") or []:
+            try:
+                v = int(v)
+            except (TypeError, ValueError):
+                continue
+            if v in vacantes and v not in ids_vacantes:
+                ids_vacantes.append(v)
+
+        validas.append(
+            {
+                "campo": campo,
+                "id_experiencia": id_experiencia,
+                "actual": actual or "",
+                "propuesta": propuesta,
+                "motivo": motivo,
+                "vacantes": [vacantes[v] for v in ids_vacantes],
+                "seguro": s.get("seguro") is True,
+            }
+        )
+    return {"sugerencias": validas[:6]}
+
+
+def construir_grafo_mejoras():
+    g = StateGraph(EstadoMejoras)
+    g.add_node("sugerir_mejoras", sugerir_mejoras)
+    g.add_node("validar_mejoras", validar_mejoras)
+    g.set_entry_point("sugerir_mejoras")
+    g.add_edge("sugerir_mejoras", "validar_mejoras")
+    g.add_edge("validar_mejoras", END)
+    return g.compile()
+
+
+grafo_mejoras = construir_grafo_mejoras()
+
+
+def sugerir_mejoras_cv(perfil, vacantes) -> EstadoMejoras:
+    """Punto de entrada usado por mejorasCv.py."""
+    return grafo_mejoras.invoke({"perfil": perfil, "vacantes": vacantes, "errores": []})
+
+
 if __name__ == "__main__":
     import sys
 
