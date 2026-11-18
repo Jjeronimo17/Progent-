@@ -1,0 +1,19 @@
+diff --git a/Code/login.py b/Code/login.py
+index b18826e..a576d61 100644
+--- a/Code/login.py
++++ b/Code/login.py
+@@ -81,10 +81,13 @@ def iniciarSesion(correo, passwordUser):
+         )
+         if conexion.is_connected():
+             cursor = conexion.cursor()
+-            correo_buscar = correo
++            correo_buscar = correo.lower()
+             sql_selectSalt = "SELECT SALT FROM Usuarios WHERE Correos = %s"
+             cursor.execute(sql_selectSalt, (correo_buscar,))
+             saltTuple = cursor.fetchone()
++            if saltTuple is None:
++                # Correo sin cuenta: antes lanzaba TypeError y tumbaba la pantalla.
++                return False
+             salt = saltTuple[0]
+             sql_selectHash = "SELECT Hashed FROM Usuarios WHERE Correos = %s"
+             cursor.execute(sql_selectHash, (correo_buscar,))
