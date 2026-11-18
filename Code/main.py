@@ -8,6 +8,7 @@ from RecomendacionesFront import mostrar_pantalla_recomendaciones
 from GuardadasFront import mostrar_pantalla_guardadas
 from NotificacionesFront import mostrar_pantalla_notificaciones
 from alertas import revisarAlertas
+from entrevistas import consultarRecordatorios, cuandoEs, textoFecha
 
 
 st.set_page_config(
@@ -40,6 +41,17 @@ else:
         else opcion,
         key="seccion",
     )
+
+    # Recordatorio de las entrevistas que se acercan (#28). Si falla, no se muestra.
+    exito, recordatorios = consultarRecordatorios(st.session_state["usuario_logueado"])
+    if exito and recordatorios:
+        st.sidebar.markdown("**Recordatorios**")
+        for r in recordatorios:
+            st.sidebar.warning(
+                f"Tu entrevista es {cuandoEs(r['Fecha_entrevista'])}: «{r['Cargo']}» en "
+                f"{r['Empresa']}, el {textoFecha(r['Fecha_entrevista'])}.",
+                icon="📅",
+            )
 
     if seccion == "Vacantes":
         mostrar_pantalla_vacantes()

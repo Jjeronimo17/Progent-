@@ -1,6 +1,9 @@
+from datetime import date, datetime
+
 import streamlit as st
 
 from documentos import consultarCarta, guardarCarta
+from entrevistas import guardarEntrevista, quitarEntrevista, textoFecha
 from formularios import consultarRespuestas, generarRespuestas, guardarRespuestas, leerFormulario
 from postulaciones import ESTADOS, cambiarEstado, consultarPostulaciones, deshacerUltimoCambio
 
@@ -194,6 +197,36 @@ def seccion_estado(postulacion):
         )
 
 
+def seccion_entrevista(postulacion):
+    """Informar la fecha de la próxima entrevista para que Progent la recuerde (#28)."""
+    id_postulacion = postulacion["Id_postulacion"]
+    correo = st.session_state["usuario_logueado"]
+    mensaje = st.session_state.pop(f"mensaje_entrevista_{id_postulacion}", None)
+    if mensaje:
+        exito, texto = mensaje
+        (st.success if exito else st.error)(texto)
+
+    entrevista = postulacion["Fecha_entrevista"]
+    if entrevista:
+        st.write(f"Entrevista informada: **{textoFecha(entrevista)}**")
+
+    with st.form(f"form_entrevista_{id_postulacion}"):
+        dia = st.date_input("Fecha de la entrevista", value=None, min_value=date.today(), format="DD/MM/YYYY")
+        hora = st.time_input("Hora", value=None, step=900)
+        guardar = st.form_submit_button("Guardar entrevista")
+    if guardar:
+        if dia is None or hora is None:
+            st.error("Elige la fecha y la hora de la entrevista.")
+        else:
+            exito, texto = guardarEntrevista(correo, id_postulacion, datetime.combine(dia, hora))
+            st.session_state[f"mensaje_entrevista_{id_postulacion}"] = (exito, texto)
+            st.rerun()
+
+    if entrevista and st.button("Quitar entrevista", key=f"quitar_entrevista_{id_postulacion}"):
+        st.session_state[f"mensaje_entrevista_{id_postulacion}"] = quitarEntrevista(correo, id_postulacion)
+        st.rerun()
+
+
 def mostrar_panel_postulaciones():
     st.title("Mis postulaciones")
 
@@ -234,12 +267,23 @@ def mostrar_tarjeta_postulacion(postulacion):
         st.caption(
             f"Hoja de vida: {postulacion['Cv']}" if postulacion["Cv"] else "Sin hoja de vida asociada"
         )
+        entrevista = postulacion["Fecha_entrevista"]
+        if entrevista and entrevista >= datetime.now():
+            st.caption(f"📅 Próxima entrevista: {textoFecha(entrevista)}")
+        elif entrevista:
+            # Pasó sin que el usuario la actualizara: ya no está pendiente (#28).
+            st.caption(
+                f"La entrevista del {textoFecha(entrevista)} ya pasó. Actualiza el estado "
+                "o informa una nueva fecha."
+            )
         # Los expanders llevan la llave de la postulación: así, cuando la tarjeta cambia
         # de etapa, lo que estaba abierto se va con ella y no queda abierto en otra.
         id_postulacion = postulacion["Id_postulacion"]
         mostrar_informacion_vacante(postulacion)
         with st.expander("Actualizar estado", key=f"exp_estado_{id_postulacion}"):
             seccion_estado(postulacion)
+        with st.expander("Informar entrevista", key=f"exp_entrevista_{id_postulacion}"):
+            seccion_entrevista(postulacion)
         with st.expander("Carta de presentación", key=f"exp_carta_{id_postulacion}"):
             seccion_carta(id_postulacion)
         with st.expander("Formulario de la vacante", key=f"exp_formulario_{id_postulacion}"):
