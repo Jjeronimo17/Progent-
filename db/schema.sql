@@ -269,6 +269,23 @@ CREATE TABLE IF NOT EXISTS `Progent_Usuarios`.`Notificaciones` (
     ON UPDATE CASCADE)
 ENGINE = InnoDB;
 
+-- -----------------------------------------------------
+-- Table `Progent_Usuarios`.`Cartas_presentacion`
+-- -----------------------------------------------------
+CREATE TABLE IF NOT EXISTS `Progent_Usuarios`.`Cartas_presentacion` (
+  `Id_postulacion_carta` INT NOT NULL,
+  `Nombre_archivo` VARCHAR(300) NOT NULL,
+  `Tipo` VARCHAR(100) NOT NULL,
+  `Archivo_bytes` LONGBLOB NOT NULL,
+  `Fecha_carga` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (`Id_postulacion_carta`),
+  CONSTRAINT `Id_postulacion_carta`
+    FOREIGN KEY (`Id_postulacion_carta`)
+    REFERENCES `Progent_Usuarios`.`Postulaciones` (`Id_postulacion`)
+    ON DELETE CASCADE
+    ON UPDATE CASCADE)
+ENGINE = InnoDB;
+
 USE `Progent_Usuarios` ;
 
 -- -----------------------------------------------------
