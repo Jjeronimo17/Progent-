@@ -1,6 +1,8 @@
 import streamlit as st
 
+from datosUsuario import consultarArchivo
 from guardadas import guardarVacante
+from postulaciones import registrarPostulacion
 from recomendaciones import (
     consultarCriterios,
     consultarDeInteres,
@@ -90,6 +92,87 @@ def ver_para_postularme(id_vacante):
     st.session_state["vacante_seleccionada"] = id_vacante
 
 
+def pedir_confirmacion(id_vacante):
+    # "Postularme" no postula: abre la confirmación en la tarjeta (#27).
+    st.session_state["confirmando_postulacion"] = id_vacante
+
+
+def cancelar_confirmacion():
+    st.session_state.pop("confirmando_postulacion", None)
+
+
+def confirmar_postulacion(id_vacante, cargo):
+    exito, mensaje = registrarPostulacion(correo_actual(), id_vacante)
+    if exito:
+        mensaje = f"Te postulaste a «{cargo}». La encuentras en Mis postulaciones."
+        quitar_de_la_lista(id_vacante)
+        cancelar_confirmacion()
+    st.session_state["mensaje_recomendaciones"] = (exito, mensaje)
+
+
+def rechazar_recomendacion(id_vacante, motivo):
+    # Rechazar descarta la sugerencia; no se registra ninguna postulación.
+    exito, mensaje = guardarDecision(correo_actual(), id_vacante, "Descartada", motivo)
+    if exito:
+        mensaje = "Rechazaste la recomendación: no se registró ninguna postulación y no te la volveré a recomendar."
+        quitar_de_la_lista(id_vacante)
+        cancelar_confirmacion()
+    st.session_state["mensaje_recomendaciones"] = (exito, mensaje)
+
+
+def seccion_confirmar_postulacion(vacante, motivo):
+    """Confirmar o rechazar la postulación que sugiere el agente. Nada se registra sin confirmar."""
+    id_vacante = vacante["Id_vacante"]
+    with st.container(border=True):
+        st.markdown(f"**¿Confirmas que quieres postularte a «{vacante['Cargo']}» en {vacante['Empresa']}?**")
+        exito, cv = consultarArchivo(correo_actual())
+        if not exito:
+            st.error(cv)
+            return
+        if cv is None:
+            st.warning(
+                "Para postularte necesitas tu hoja de vida. Cárgala en el detalle de la vacante "
+                "y postúlate desde ahí."
+            )
+        else:
+            # Columnas de archivos_usuarios: Correos_usuarios, nombre_archivo, tipo, archivo_bytes
+            st.caption(
+                f"Se registrará en tu panel de seguimiento con tu hoja de vida **{cv[1]}**. "
+                "Progent no envía la postulación al portal de la empresa."
+            )
+        confirmar, rechazar, cancelar = st.columns(3)
+        if cv is None:
+            confirmar.button(
+                "Ver detalle para cargarla",
+                key=f"detalle_rec_{id_vacante}",
+                use_container_width=True,
+                on_click=ver_para_postularme,
+                args=(id_vacante,),
+            )
+        else:
+            confirmar.button(
+                "Confirmar postulación",
+                key=f"confirmar_rec_{id_vacante}",
+                type="primary",
+                use_container_width=True,
+                on_click=confirmar_postulacion,
+                args=(id_vacante, vacante["Cargo"]),
+            )
+        rechazar.button(
+            "Rechazar",
+            key=f"rechazar_rec_{id_vacante}",
+            use_container_width=True,
+            on_click=rechazar_recomendacion,
+            args=(id_vacante, motivo),
+        )
+        cancelar.button(
+            "Cancelar",
+            key=f"cancelar_rec_{id_vacante}",
+            use_container_width=True,
+            on_click=cancelar_confirmacion,
+        )
+
+
 def mostrar_recomendacion(recomendacion):
     vacante = recomendacion["vacante"]
     id_vacante = vacante["Id_vacante"]
@@ -99,11 +182,13 @@ def mostrar_recomendacion(recomendacion):
 
         if recomendacion["seguro"]:
             st.markdown(f"**Por qué te la recomiendo:** {recomendacion['motivo']}")
+            st.caption("Sugerencia del agente: todavía no te has postulado.")
         else:
             st.caption("Menor relevancia")
             st.warning(
                 "No estoy seguro de que esta vacante encaje contigo. "
-                f"Te la recomiendo porque: {recomendacion['motivo']}"
+                f"Te la recomiendo porque: {recomendacion['motivo']} "
+                "Es solo una sugerencia: no he hecho nada en tu nombre ni te he postulado."
             )
 
         with st.expander("Ver descripción y requisitos"):
@@ -132,7 +217,7 @@ def mostrar_recomendacion(recomendacion):
             "Postularme",
             key=f"postular_rec_{id_vacante}",
             use_container_width=True,
-            on_click=ver_para_postularme,
+            on_click=pedir_confirmacion,
             args=(id_vacante,),
         )
         descartar.button(
@@ -142,6 +227,8 @@ def mostrar_recomendacion(recomendacion):
             on_click=decidir,
             args=(id_vacante, "Descartada", recomendacion["motivo"]),
         )
+        if st.session_state.get("confirmando_postulacion") == id_vacante:
+            seccion_confirmar_postulacion(vacante, recomendacion["motivo"])
 
 
 def seccion_resultado():
