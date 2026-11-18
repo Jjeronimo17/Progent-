@@ -1,3 +1,4 @@
+import json
 import os
 
 import mysql.connector
@@ -104,7 +105,7 @@ def perfilParaRecomendar(cursor, correo):
 
 
 def vacantesCandidatas(cursor, correo, ciudad=None):
-    """Vacantes abiertas que el usuario no ha decidido ni a las que se ha postulado.
+    """Vacantes abiertas que el usuario no ha decidido, guardado ni a las que se ha postulado.
 
     Si hay ciudad, solo entran las de esa ciudad o las remotas.
     """
@@ -114,9 +115,11 @@ def vacantesCandidatas(cursor, correo, ciudad=None):
         "AND Id_vacante NOT IN (SELECT Id_vacante_recomendacion FROM Recomendaciones "
         "WHERE Correos_recomendacion = %s) "
         "AND Id_vacante NOT IN (SELECT Id_vacante_postulacion FROM Postulaciones "
-        "WHERE Correos_postulacion = %s)"
+        "WHERE Correos_postulacion = %s) "
+        "AND Id_vacante NOT IN (SELECT Id_vacante_guardada FROM Vacantes_guardadas "
+        "WHERE Correos_guardada = %s)"
     )
-    parametros = (correo, correo)
+    parametros = (correo, correo, correo)
     if ciudad:
         consulta += " AND (Ubicacion LIKE %s OR Ubicacion = 'Remoto')"
         parametros += (f"%{escaparComodines(ciudad)}%",)
@@ -127,25 +130,25 @@ def vacantesCandidatas(cursor, correo, ciudad=None):
     return [dict(zip(columnas, fila)) for fila in cursor.fetchall()]
 
 
-def generarRecomendaciones(correo):
-    """Pide recomendaciones al agente para el usuario.
+def prepararRecomendaciones(correo):
+    """Reúne lo que necesita el agente, sin llamarlo.
 
-    Retorna (False, mensaje) si falla la base de datos, o (True, resultado) con:
-      - "faltantes": lo que le falta al perfil (si no está vacío, no se llama al agente)
-      - "sin_candidatas": True si no hay vacantes para recomendar
-      - "recomendaciones": lista de {"vacante", "motivo", "seguro"}
-      - "errores": mensajes del agente
-    Lo que devuelve el agente NO se guarda aquí (decisión 7): se guarda cuando el
-    usuario lo confirma o lo descarta con guardarDecision().
+    Retorna (False, mensaje) si falla la base de datos, o (True, datos) con:
+      - "faltantes": lo que le falta al perfil (si no está vacío, no se recomienda)
+      - "perfil", "preferencias" y "candidatas": lo que recibe el agente
+      - "base": texto que cambia cuando cambian el perfil o los criterios. Con él y
+        las candidatas, la pantalla decide si hace falta pedir recomendaciones nuevas
+        sin que el usuario las busque (#25).
     """
-    resultado = {"faltantes": [], "sin_candidatas": False, "recomendaciones": [], "errores": []}
+    datos = {"faltantes": [], "perfil": None, "preferencias": None, "candidatas": [], "base": ""}
 
     exito, faltantes = faltantesPerfil(correo)
     if not exito:
         return False, faltantes
     if faltantes:
-        resultado["faltantes"] = faltantes
-        return True, resultado
+        datos["faltantes"] = faltantes
+        datos["base"] = "faltantes: " + "; ".join(faltantes)
+        return True, datos
 
     try:
         conexion = conectar()
@@ -158,8 +161,8 @@ def generarRecomendaciones(correo):
             (correo,),
         )
         criterios = cursor.fetchone() or (None, None, None)
-        perfil = perfilParaRecomendar(cursor, correo)
-        candidatas = vacantesCandidatas(cursor, correo, criterios[2])
+        datos["perfil"] = perfilParaRecomendar(cursor, correo)
+        datos["candidatas"] = vacantesCandidatas(cursor, correo, criterios[2])
     except Error as e:
         print(f"Fallo en las operaciones de arriba {e}")
         return False, "No se pudo preparar tu perfil para el agente, intente de nuevo"
@@ -168,7 +171,36 @@ def generarRecomendaciones(correo):
             cursor.close()
             conexion.close()
 
-    if not candidatas:
+    # La ciudad solo se usa para filtrar: no se envía al agente.
+    datos["preferencias"] = {"cargo_deseado": criterios[0], "modalidad": criterios[1]}
+    datos["base"] = json.dumps(
+        {"perfil": datos["perfil"], "criterios": list(criterios)}, ensure_ascii=False, sort_keys=True
+    )
+    return True, datos
+
+
+def generarRecomendaciones(correo, preparado=None):
+    """Pide recomendaciones al agente para el usuario.
+
+    Recibe lo que devolvió prepararRecomendaciones() (si no llega, lo prepara).
+    Retorna (False, mensaje) si falla la base de datos, o (True, resultado) con:
+      - "faltantes": lo que le falta al perfil (si no está vacío, no se llama al agente)
+      - "sin_candidatas": True si no hay vacantes para recomendar
+      - "recomendaciones": lista de {"vacante", "motivo", "seguro"}
+      - "errores": mensajes del agente
+    Lo que devuelve el agente NO se guarda aquí (decisión 7): se guarda cuando el
+    usuario lo confirma o lo descarta con guardarDecision().
+    """
+    resultado = {"faltantes": [], "sin_candidatas": False, "recomendaciones": [], "errores": []}
+
+    if preparado is None:
+        exito, preparado = prepararRecomendaciones(correo)
+        if not exito:
+            return False, preparado
+    if preparado["faltantes"]:
+        resultado["faltantes"] = preparado["faltantes"]
+        return True, resultado
+    if not preparado["candidatas"]:
         resultado["sin_candidatas"] = True
         return True, resultado
 
@@ -176,9 +208,7 @@ def generarRecomendaciones(correo):
     # clave de Anthropic; solo esta acción la necesita.
     from graph import recomendar_vacantes
 
-    # La ciudad solo se usó para filtrar: no se envía al agente.
-    preferencias = {"cargo_deseado": criterios[0], "modalidad": criterios[1]}
-    estado = recomendar_vacantes(perfil, preferencias, candidatas)
+    estado = recomendar_vacantes(preparado["perfil"], preparado["preferencias"], preparado["candidatas"])
     resultado["errores"] = estado.get("errores", [])
     resultado["recomendaciones"] = estado.get("recomendaciones", []) if not resultado["errores"] else []
     return True, resultado
