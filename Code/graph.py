@@ -674,6 +674,84 @@ def evaluar_compatibilidad_vacante(perfil, vacante) -> EstadoCompatibilidad:
     return grafo_compatibilidad.invoke({"perfil": perfil, "vacante": vacante, "errores": []})
 
 
+# ==========================================================================
+# Agente que sugiere qué procesos priorizar (historia #29)
+#
+# Flujo:  priorizar_procesos  ->  validar_prioridades  ->  END
+#
+# Recibe solo datos de los procesos (cargo, etapa, días y entrevista); ningún dato
+# personal (decisión 6). Lo que sugiere no cambia nada en las postulaciones.
+# ==========================================================================
+from prompts import SYSTEM_PRIORIDADES, USER_PRIORIDADES
+
+
+class EstadoPrioridades(TypedDict, total=False):
+    """Estado que viaja por el grafo de prioridades."""
+
+    procesos: list[dict[str, Any]]
+    orden: list[dict[str, Any]]
+    resumen: str
+    errores: list[str]
+
+
+def priorizar_procesos(estado: EstadoPrioridades) -> EstadoPrioridades:
+    errores = list(estado.get("errores", []))
+    mensaje = USER_PRIORIDADES.format(procesos=json.dumps(estado["procesos"], ensure_ascii=False, indent=2))
+    datos, error = pedir_json_modelo(SYSTEM_PRIORIDADES, mensaje, 2000)
+    if error:
+        return {"errores": errores + [error]}
+    orden = datos.get("orden")
+    if not isinstance(orden, list):
+        return {"errores": errores + ["El agente devolvió una respuesta incompleta. Intenta de nuevo."]}
+    return {"orden": orden, "resumen": str(datos.get("resumen") or "").strip()}
+
+
+def validar_prioridades(estado: EstadoPrioridades) -> EstadoPrioridades:
+    """Cada proceso activo aparece una sola vez. Los que el agente no ordenó van al final, como dudosos."""
+    if estado.get("errores"):
+        return {}
+    ids = [p["id_proceso"] for p in estado["procesos"]]
+    validos, vistos = [], set()
+    for o in estado.get("orden", []):
+        if not isinstance(o, dict):
+            continue
+        try:
+            id_proceso = int(o.get("id_proceso"))
+        except (TypeError, ValueError):
+            continue
+        motivo = str(o.get("motivo") or "").strip()
+        if id_proceso not in ids or id_proceso in vistos or not motivo:
+            continue
+        vistos.add(id_proceso)
+        validos.append({"id_proceso": id_proceso, "motivo": motivo, "seguro": o.get("seguro") is True})
+    if not validos:
+        return {"errores": ["El agente no pudo ordenar tus procesos. Intenta de nuevo."]}
+    for id_proceso in ids:
+        if id_proceso not in vistos:
+            validos.append(
+                {"id_proceso": id_proceso, "motivo": "El agente no lo tuvo en cuenta; revísalo tú.", "seguro": False}
+            )
+    return {"orden": validos}
+
+
+def construir_grafo_prioridades():
+    g = StateGraph(EstadoPrioridades)
+    g.add_node("priorizar_procesos", priorizar_procesos)
+    g.add_node("validar_prioridades", validar_prioridades)
+    g.set_entry_point("priorizar_procesos")
+    g.add_edge("priorizar_procesos", "validar_prioridades")
+    g.add_edge("validar_prioridades", END)
+    return g.compile()
+
+
+grafo_prioridades = construir_grafo_prioridades()
+
+
+def sugerir_prioridades(procesos) -> EstadoPrioridades:
+    """Punto de entrada usado por prioridades.py."""
+    return grafo_prioridades.invoke({"procesos": procesos, "errores": []})
+
+
 if __name__ == "__main__":
     import sys
 

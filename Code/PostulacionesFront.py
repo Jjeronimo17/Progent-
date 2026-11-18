@@ -6,6 +6,7 @@ from documentos import consultarCarta, guardarCarta
 from entrevistas import guardarEntrevista, quitarEntrevista, textoFecha
 from formularios import consultarRespuestas, generarRespuestas, guardarRespuestas, leerFormulario
 from postulaciones import ESTADOS, cambiarEstado, consultarPostulaciones, deshacerUltimoCambio
+from prioridades import generarPrioridades
 
 # En la base los estados van sin tilde, como los demás ENUM del modelo.
 ETIQUETAS_ESTADO = {"En revision": "En revisión"}
@@ -227,6 +228,58 @@ def seccion_entrevista(postulacion):
         st.rerun()
 
 
+def seccion_prioridades(postulaciones):
+    """Orden sugerido por el agente para atender los procesos activos (#29). No cambia nada."""
+    # Si cambian las postulaciones (etapa o entrevista), el orden anterior ya no vale.
+    firma = [(p["Id_postulacion"], p["Estado"], str(p["Fecha_entrevista"])) for p in postulaciones]
+    guardado = st.session_state.get("prioridades")
+    if guardado and guardado["firma"] != firma:
+        st.session_state.pop("prioridades")
+        guardado = None
+
+    with st.expander("¿Qué proceso atiendo primero?", expanded=guardado is not None):
+        st.caption("El agente revisa tus procesos activos y te sugiere un orden para atenderlos.")
+        if st.button("Sugerir prioridades"):
+            with st.spinner("El agente está revisando tus procesos..."):
+                respuesta = generarPrioridades(st.session_state["usuario_logueado"])
+            guardado = {"firma": firma, "respuesta": respuesta}
+            st.session_state["prioridades"] = guardado
+        if guardado is None:
+            return
+
+        exito, datos = guardado["respuesta"]
+        if not exito:
+            st.error(datos)
+            return
+        procesos = datos["procesos"]
+        if not procesos:
+            st.info(
+                "No tienes procesos activos: tus postulaciones están rechazadas o retiradas, "
+                "así que no hay nada que priorizar."
+            )
+            return
+        if len(procesos) == 1:
+            unico = next(iter(procesos.values()))
+            st.info(f"Solo tienes un proceso activo: «{unico['Cargo']}». No hay nada que ordenar; atiéndelo a él.")
+            return
+        if datos["errores"]:
+            st.error(" ".join(datos["errores"]))
+            return
+
+        if datos["resumen"]:
+            st.markdown(f"**Por qué este orden:** {datos['resumen']}")
+        for posicion, item in enumerate(datos["orden"], start=1):
+            proceso = procesos[item["id_proceso"]]
+            st.markdown(
+                f"**{posicion}. {proceso['Cargo']}** — {proceso['Empresa']} · {etiqueta_estado(proceso['Estado'])}"
+            )
+            if item["seguro"]:
+                st.caption(item["motivo"])
+            else:
+                st.warning(f"Sugerencia (no estoy seguro de este lugar): {item['motivo']}")
+        st.caption("Es solo una sugerencia del agente: no cambia nada en tus postulaciones.")
+
+
 def mostrar_panel_postulaciones():
     st.title("Mis postulaciones")
 
@@ -243,6 +296,8 @@ def mostrar_panel_postulaciones():
     if not resultado:
         st.info("Todavía no te has postulado a ninguna vacante.")
         return
+
+    seccion_prioridades(resultado)
 
     # Agrupadas por etapa, en el orden del proceso (#23). Dentro de cada etapa, la
     # más reciente primero. Al cambiar el estado, la postulación pasa sola de grupo.
