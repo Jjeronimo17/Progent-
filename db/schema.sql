@@ -129,6 +129,8 @@ CREATE TABLE IF NOT EXISTS `Progent_Usuarios`.`Vacantes` (
   `Requisitos` LONGTEXT NOT NULL,
   `Estado` ENUM('Abierta', 'Cerrada') NOT NULL DEFAULT 'Abierta',
   `Fecha_publicacion` DATE NOT NULL,
+  `Salario` INT NULL,
+  `Modalidad` ENUM('Hibrido', 'Presencial', 'Virtual') NULL,
   PRIMARY KEY (`Id_vacante`))
 ENGINE = InnoDB;
 
@@ -152,6 +154,72 @@ CREATE TABLE IF NOT EXISTS `Progent_Usuarios`.`Postulaciones` (
     ON UPDATE CASCADE,
   CONSTRAINT `Id_vacante_postulacion`
     FOREIGN KEY (`Id_vacante_postulacion`)
+    REFERENCES `Progent_Usuarios`.`Vacantes` (`Id_vacante`)
+    ON DELETE CASCADE
+    ON UPDATE CASCADE)
+ENGINE = InnoDB;
+
+
+-- -----------------------------------------------------
+-- Table `Progent_Usuarios`.`Criterios_busqueda`
+-- -----------------------------------------------------
+CREATE TABLE IF NOT EXISTS `Progent_Usuarios`.`Criterios_busqueda` (
+  `Correos_criterios` VARCHAR(200) NOT NULL,
+  `Cargo_deseado` VARCHAR(150) NULL,
+  `Modalidad` ENUM('Hibrido', 'Presencial', 'Virtual') NULL,
+  `Ciudad` VARCHAR(100) NULL,
+  PRIMARY KEY (`Correos_criterios`),
+  CONSTRAINT `Correos_criterios`
+    FOREIGN KEY (`Correos_criterios`)
+    REFERENCES `Progent_Usuarios`.`Usuarios` (`Correos`)
+    ON DELETE CASCADE
+    ON UPDATE CASCADE)
+ENGINE = InnoDB;
+
+
+-- -----------------------------------------------------
+-- Table `Progent_Usuarios`.`Recomendaciones`
+-- -----------------------------------------------------
+CREATE TABLE IF NOT EXISTS `Progent_Usuarios`.`Recomendaciones` (
+  `Id_recomendacion` INT NOT NULL AUTO_INCREMENT,
+  `Correos_recomendacion` VARCHAR(200) NOT NULL,
+  `Id_vacante_recomendacion` INT NOT NULL,
+  `Decision` ENUM('Interesa', 'Descartada') NOT NULL,
+  `Motivo` LONGTEXT NULL,
+  `Fecha_decision` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (`Id_recomendacion`),
+  UNIQUE INDEX `Usuario_vacante_recomendacion_UNIQUE` (`Correos_recomendacion` ASC, `Id_vacante_recomendacion` ASC) VISIBLE,
+  INDEX `Id_vacante_recomendacion_idx` (`Id_vacante_recomendacion` ASC) VISIBLE,
+  CONSTRAINT `Correos_recomendacion`
+    FOREIGN KEY (`Correos_recomendacion`)
+    REFERENCES `Progent_Usuarios`.`Usuarios` (`Correos`)
+    ON DELETE CASCADE
+    ON UPDATE CASCADE,
+  CONSTRAINT `Id_vacante_recomendacion`
+    FOREIGN KEY (`Id_vacante_recomendacion`)
+    REFERENCES `Progent_Usuarios`.`Vacantes` (`Id_vacante`)
+    ON DELETE CASCADE
+    ON UPDATE CASCADE)
+ENGINE = InnoDB;
+
+-- -----------------------------------------------------
+-- Table `Progent_Usuarios`.`Vacantes_guardadas`
+-- -----------------------------------------------------
+CREATE TABLE IF NOT EXISTS `Progent_Usuarios`.`Vacantes_guardadas` (
+  `Id_guardada` INT NOT NULL AUTO_INCREMENT,
+  `Correos_guardada` VARCHAR(200) NOT NULL,
+  `Id_vacante_guardada` INT NOT NULL,
+  `Fecha_guardada` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (`Id_guardada`),
+  UNIQUE INDEX `Usuario_vacante_guardada_UNIQUE` (`Correos_guardada` ASC, `Id_vacante_guardada` ASC) VISIBLE,
+  INDEX `Id_vacante_guardada_idx` (`Id_vacante_guardada` ASC) VISIBLE,
+  CONSTRAINT `Correos_guardada`
+    FOREIGN KEY (`Correos_guardada`)
+    REFERENCES `Progent_Usuarios`.`Usuarios` (`Correos`)
+    ON DELETE CASCADE
+    ON UPDATE CASCADE,
+  CONSTRAINT `Id_vacante_guardada`
+    FOREIGN KEY (`Id_vacante_guardada`)
     REFERENCES `Progent_Usuarios`.`Vacantes` (`Id_vacante`)
     ON DELETE CASCADE
     ON UPDATE CASCADE)
@@ -187,15 +255,15 @@ SET UNIQUE_CHECKS=@OLD_UNIQUE_CHECKS;
 SET NAMES utf8mb4;
 START TRANSACTION;
 USE `Progent_Usuarios`;
-INSERT IGNORE INTO `Progent_Usuarios`.`Vacantes` (`Id_vacante`, `Cargo`, `Empresa`, `Ubicacion`, `Descripcion`, `Requisitos`, `Estado`, `Fecha_publicacion`) VALUES (1, 'Desarrollador Backend Python', 'Andina Software S.A.S.', 'Medellín', 'Desarrollo y mantenimiento de servicios REST para la plataforma de pagos de la empresa. Trabajo en un equipo ágil con despliegues semanales.', 'Dos años de experiencia con Python. Conocimientos de Django o FastAPI, MySQL y Git.', 'Abierta', '2026-11-03');
-INSERT IGNORE INTO `Progent_Usuarios`.`Vacantes` (`Id_vacante`, `Cargo`, `Empresa`, `Ubicacion`, `Descripcion`, `Requisitos`, `Estado`, `Fecha_publicacion`) VALUES (2, 'Analista de Datos Junior', 'Cafetal Analytics', 'Bogotá', 'Construcción de tableros e informes para clientes del sector agrícola a partir de bases de datos de producción.', 'Profesional o estudiante de último semestre en Ingeniería o Estadística. SQL y Excel avanzado; Power BI deseable.', 'Abierta', '2026-11-05');
-INSERT IGNORE INTO `Progent_Usuarios`.`Vacantes` (`Id_vacante`, `Cargo`, `Empresa`, `Ubicacion`, `Descripcion`, `Requisitos`, `Estado`, `Fecha_publicacion`) VALUES (3, 'Practicante de Desarrollo de Software', 'Nodo Ingeniería', 'Medellín', 'Apoyo al equipo de desarrollo en la construcción de módulos internos y en pruebas manuales.', 'Estudiante de Ingeniería de Sistemas a partir de sexto semestre. Bases de programación orientada a objetos.', 'Abierta', '2026-11-07');
-INSERT IGNORE INTO `Progent_Usuarios`.`Vacantes` (`Id_vacante`, `Cargo`, `Empresa`, `Ubicacion`, `Descripcion`, `Requisitos`, `Estado`, `Fecha_publicacion`) VALUES (4, 'Ingeniero DevOps', 'Cordillera Cloud', 'Remoto', 'Administración de la infraestructura en la nube, automatización de despliegues y monitoreo de servicios.', 'Tres años de experiencia en Linux, Docker y CI/CD. Experiencia con AWS o Azure.', 'Abierta', '2026-11-08');
-INSERT IGNORE INTO `Progent_Usuarios`.`Vacantes` (`Id_vacante`, `Cargo`, `Empresa`, `Ubicacion`, `Descripcion`, `Requisitos`, `Estado`, `Fecha_publicacion`) VALUES (5, 'Desarrollador Frontend', 'Pixel Valle Estudio', 'Cali', 'Maquetación e implementación de interfaces web para tiendas en línea de clientes nacionales.', 'Experiencia con HTML, CSS y JavaScript. React deseable. Portafolio de proyectos.', 'Abierta', '2026-11-10');
-INSERT IGNORE INTO `Progent_Usuarios`.`Vacantes` (`Id_vacante`, `Cargo`, `Empresa`, `Ubicacion`, `Descripcion`, `Requisitos`, `Estado`, `Fecha_publicacion`) VALUES (6, 'Auxiliar Contable', 'Contadores Asociados del Caribe', 'Barranquilla', 'Registro de facturas, conciliaciones bancarias y apoyo en el cierre contable mensual.', 'Técnico o tecnólogo en contabilidad. Un año de experiencia y manejo de software contable.', 'Abierta', '2026-11-11');
-INSERT IGNORE INTO `Progent_Usuarios`.`Vacantes` (`Id_vacante`, `Cargo`, `Empresa`, `Ubicacion`, `Descripcion`, `Requisitos`, `Estado`, `Fecha_publicacion`) VALUES (7, 'Diseñador UX/UI', 'Pixel Valle Estudio', 'Remoto', 'Diseño de flujos y prototipos para aplicaciones móviles, en conjunto con el equipo de producto.', 'Dos años de experiencia en diseño de producto digital. Manejo de Figma y pruebas con usuarios.', 'Abierta', '2026-11-12');
-INSERT IGNORE INTO `Progent_Usuarios`.`Vacantes` (`Id_vacante`, `Cargo`, `Empresa`, `Ubicacion`, `Descripcion`, `Requisitos`, `Estado`, `Fecha_publicacion`) VALUES (8, 'Ejecutivo Comercial', 'Seguros La Montaña', 'Bogotá', 'Venta y seguimiento de pólizas a clientes corporativos en la zona norte de la ciudad.', 'Experiencia comercial de un año. Excelente comunicación. Vehículo propio deseable.', 'Abierta', '2026-11-13');
-INSERT IGNORE INTO `Progent_Usuarios`.`Vacantes` (`Id_vacante`, `Cargo`, `Empresa`, `Ubicacion`, `Descripcion`, `Requisitos`, `Estado`, `Fecha_publicacion`) VALUES (9, 'Tester QA Manual', 'Andina Software S.A.S.', 'Medellín', 'Diseño y ejecución de casos de prueba para la aplicación móvil de la empresa y reporte de defectos.', 'Un año de experiencia en pruebas de software. Conocimiento de Jira y de metodologías ágiles.', 'Abierta', '2026-11-14');
-INSERT IGNORE INTO `Progent_Usuarios`.`Vacantes` (`Id_vacante`, `Cargo`, `Empresa`, `Ubicacion`, `Descripcion`, `Requisitos`, `Estado`, `Fecha_publicacion`) VALUES (10, 'Soporte Técnico Nivel 1', 'Nodo Ingeniería', 'Medellín', 'Atención de solicitudes de soporte de los usuarios internos por teléfono y correo.', 'Técnico en sistemas. Conocimientos básicos de redes y de Windows.', 'Cerrada', '2026-10-20');
+INSERT IGNORE INTO `Progent_Usuarios`.`Vacantes` (`Id_vacante`, `Cargo`, `Empresa`, `Ubicacion`, `Descripcion`, `Requisitos`, `Estado`, `Fecha_publicacion`, `Salario`, `Modalidad`) VALUES (1, 'Desarrollador Backend Python', 'Andina Software S.A.S.', 'Medellín', 'Desarrollo y mantenimiento de servicios REST para la plataforma de pagos de la empresa. Trabajo en un equipo ágil con despliegues semanales.', 'Dos años de experiencia con Python. Conocimientos de Django o FastAPI, MySQL y Git.', 'Abierta', '2026-11-03', 6500000, 'Hibrido');
+INSERT IGNORE INTO `Progent_Usuarios`.`Vacantes` (`Id_vacante`, `Cargo`, `Empresa`, `Ubicacion`, `Descripcion`, `Requisitos`, `Estado`, `Fecha_publicacion`, `Salario`, `Modalidad`) VALUES (2, 'Analista de Datos Junior', 'Cafetal Analytics', 'Bogotá', 'Construcción de tableros e informes para clientes del sector agrícola a partir de bases de datos de producción.', 'Profesional o estudiante de último semestre en Ingeniería o Estadística. SQL y Excel avanzado; Power BI deseable.', 'Abierta', '2026-11-05', 3200000, 'Presencial');
+INSERT IGNORE INTO `Progent_Usuarios`.`Vacantes` (`Id_vacante`, `Cargo`, `Empresa`, `Ubicacion`, `Descripcion`, `Requisitos`, `Estado`, `Fecha_publicacion`, `Salario`, `Modalidad`) VALUES (3, 'Practicante de Desarrollo de Software', 'Nodo Ingeniería', 'Medellín', 'Apoyo al equipo de desarrollo en la construcción de módulos internos y en pruebas manuales.', 'Estudiante de Ingeniería de Sistemas a partir de sexto semestre. Bases de programación orientada a objetos.', 'Abierta', '2026-11-07', 1600000, 'Presencial');
+INSERT IGNORE INTO `Progent_Usuarios`.`Vacantes` (`Id_vacante`, `Cargo`, `Empresa`, `Ubicacion`, `Descripcion`, `Requisitos`, `Estado`, `Fecha_publicacion`, `Salario`, `Modalidad`) VALUES (4, 'Ingeniero DevOps', 'Cordillera Cloud', 'Remoto', 'Administración de la infraestructura en la nube, automatización de despliegues y monitoreo de servicios.', 'Tres años de experiencia en Linux, Docker y CI/CD. Experiencia con AWS o Azure.', 'Abierta', '2026-11-08', 9000000, 'Virtual');
+INSERT IGNORE INTO `Progent_Usuarios`.`Vacantes` (`Id_vacante`, `Cargo`, `Empresa`, `Ubicacion`, `Descripcion`, `Requisitos`, `Estado`, `Fecha_publicacion`, `Salario`, `Modalidad`) VALUES (5, 'Desarrollador Frontend', 'Pixel Valle Estudio', 'Cali', 'Maquetación e implementación de interfaces web para tiendas en línea de clientes nacionales.', 'Experiencia con HTML, CSS y JavaScript. React deseable. Portafolio de proyectos.', 'Abierta', '2026-11-10', 4500000, 'Hibrido');
+INSERT IGNORE INTO `Progent_Usuarios`.`Vacantes` (`Id_vacante`, `Cargo`, `Empresa`, `Ubicacion`, `Descripcion`, `Requisitos`, `Estado`, `Fecha_publicacion`, `Salario`, `Modalidad`) VALUES (6, 'Auxiliar Contable', 'Contadores Asociados del Caribe', 'Barranquilla', 'Registro de facturas, conciliaciones bancarias y apoyo en el cierre contable mensual.', 'Técnico o tecnólogo en contabilidad. Un año de experiencia y manejo de software contable.', 'Abierta', '2026-11-11', 2200000, 'Presencial');
+INSERT IGNORE INTO `Progent_Usuarios`.`Vacantes` (`Id_vacante`, `Cargo`, `Empresa`, `Ubicacion`, `Descripcion`, `Requisitos`, `Estado`, `Fecha_publicacion`, `Salario`, `Modalidad`) VALUES (7, 'Diseñador UX/UI', 'Pixel Valle Estudio', 'Remoto', 'Diseño de flujos y prototipos para aplicaciones móviles, en conjunto con el equipo de producto.', 'Dos años de experiencia en diseño de producto digital. Manejo de Figma y pruebas con usuarios.', 'Abierta', '2026-11-12', NULL, 'Virtual');
+INSERT IGNORE INTO `Progent_Usuarios`.`Vacantes` (`Id_vacante`, `Cargo`, `Empresa`, `Ubicacion`, `Descripcion`, `Requisitos`, `Estado`, `Fecha_publicacion`, `Salario`, `Modalidad`) VALUES (8, 'Ejecutivo Comercial', 'Seguros La Montaña', 'Bogotá', 'Venta y seguimiento de pólizas a clientes corporativos en la zona norte de la ciudad.', 'Experiencia comercial de un año. Excelente comunicación. Vehículo propio deseable.', 'Abierta', '2026-11-13', 2800000, 'Presencial');
+INSERT IGNORE INTO `Progent_Usuarios`.`Vacantes` (`Id_vacante`, `Cargo`, `Empresa`, `Ubicacion`, `Descripcion`, `Requisitos`, `Estado`, `Fecha_publicacion`, `Salario`, `Modalidad`) VALUES (9, 'Tester QA Manual', 'Andina Software S.A.S.', 'Medellín', 'Diseño y ejecución de casos de prueba para la aplicación móvil de la empresa y reporte de defectos.', 'Un año de experiencia en pruebas de software. Conocimiento de Jira y de metodologías ágiles.', 'Abierta', '2026-11-14', 3800000, 'Hibrido');
+INSERT IGNORE INTO `Progent_Usuarios`.`Vacantes` (`Id_vacante`, `Cargo`, `Empresa`, `Ubicacion`, `Descripcion`, `Requisitos`, `Estado`, `Fecha_publicacion`, `Salario`, `Modalidad`) VALUES (10, 'Soporte Técnico Nivel 1', 'Nodo Ingeniería', 'Medellín', 'Atención de solicitudes de soporte de los usuarios internos por teléfono y correo.', 'Técnico en sistemas. Conocimientos básicos de redes y de Windows.', 'Cerrada', '2026-10-20', 1900000, 'Presencial');
 
 COMMIT;

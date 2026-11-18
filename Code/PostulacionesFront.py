@@ -2,6 +2,24 @@ import streamlit as st
 
 from postulaciones import consultarPostulaciones
 
+# En la base los estados van sin tilde, como los demás ENUM del modelo.
+ETIQUETAS_ESTADO = {"En revision": "En revisión"}
+
+
+def etiqueta_estado(estado):
+    return ETIQUETAS_ESTADO.get(estado, estado)
+
+
+def mostrar_informacion_vacante(postulacion):
+    with st.expander("Ver información de la vacante"):
+        if postulacion["Estado_vacante"] == "Cerrada":
+            st.warning("Esta vacante ya fue cerrada y no recibe más postulaciones.")
+        st.markdown("**Descripción**")
+        st.write(postulacion["Descripcion"])
+        st.markdown("**Requisitos**")
+        st.write(postulacion["Requisitos"])
+        st.caption(f"Publicada el {postulacion['Fecha_publicacion']:%d/%m/%Y}")
+
 
 def mostrar_panel_postulaciones():
     st.title("Mis postulaciones")
@@ -20,4 +38,6 @@ def mostrar_panel_postulaciones():
         with st.container(border=True):
             st.subheader(postulacion["Cargo"])
             st.write(f"**{postulacion['Empresa']}** · {postulacion['Ubicacion']}")
+            st.write(f"Estado: **{etiqueta_estado(postulacion['Estado'])}**")
             st.caption(f"Te postulaste el {postulacion['Fecha_postulacion']:%d/%m/%Y}")
+            mostrar_informacion_vacante(postulacion)

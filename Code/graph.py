@@ -201,6 +201,128 @@ def procesar_cv(pdf_bytes: bytes) -> EstadoPerfil:
     return grafo.invoke({"pdf_bytes": pdf_bytes, "errores": []})
 
 
+# ==========================================================================
+# Agente de recomendación de vacantes (historia #11)
+#
+# Flujo:  recomendar  ->  validar_recomendaciones  ->  END
+#
+# Recibe el perfil SIN datos personales (decisión 6): no llegan nombre,
+# teléfono, correos, ubicación ni edad. Lo arma recomendaciones.py.
+# ==========================================================================
+from prompts import SYSTEM_RECOMENDACION, USER_RECOMENDACION
+
+
+class EstadoRecomendacion(TypedDict, total=False):
+    """Estado que viaja por el grafo de recomendación."""
+
+    perfil: dict[str, Any]
+    preferencias: dict[str, Any]
+    vacantes: list[dict[str, Any]]
+    recomendaciones: list[dict[str, Any]]
+    errores: list[str]
+
+
+def leer_json_modelo(crudo: str) -> dict:
+    """Saca el objeto JSON de la respuesta del modelo (puede venir entre ```)."""
+    crudo = crudo.strip()
+    inicio, fin = crudo.find("{"), crudo.rfind("}")
+    if inicio == -1 or fin == -1:
+        raise json.JSONDecodeError("No hay un objeto JSON", crudo, 0)
+    return json.loads(crudo[inicio : fin + 1])
+
+
+def recomendar(estado: EstadoRecomendacion) -> EstadoRecomendacion:
+    errores = list(estado.get("errores", []))
+    vacantes = [
+        {
+            "id_vacante": v["Id_vacante"],
+            "cargo": v["Cargo"],
+            "empresa": v["Empresa"],
+            "descripcion": v["Descripcion"],
+            "requisitos": v["Requisitos"],
+        }
+        for v in estado["vacantes"]
+    ]
+    mensaje = USER_RECOMENDACION.format(
+        perfil=json.dumps(estado["perfil"], ensure_ascii=False, indent=2),
+        preferencias=json.dumps(estado.get("preferencias", {}), ensure_ascii=False),
+        vacantes=json.dumps(vacantes, ensure_ascii=False, indent=2),
+    )
+
+    try:
+        respuesta = cliente.messages.create(
+            model=MODELO,
+            max_tokens=2000,
+            system=SYSTEM_RECOMENDACION,
+            messages=[{"role": "user", "content": mensaje}],
+        )
+    except anthropic.APIError as e:
+        print(f"Fallo en la llamada al modelo {e}")
+        errores.append("El agente no respondió. Intenta de nuevo en unos minutos.")
+        return {"errores": errores}
+
+    texto = "\n".join(b.text for b in respuesta.content if b.type == "text")
+    try:
+        datos = leer_json_modelo(texto)
+    except json.JSONDecodeError:
+        errores.append("El agente devolvió una respuesta que no se pudo leer. Intenta de nuevo.")
+        return {"errores": errores}
+
+    recomendaciones = datos.get("recomendaciones")
+    if not isinstance(recomendaciones, list):
+        errores.append("El agente devolvió una respuesta incompleta. Intenta de nuevo.")
+        return {"errores": errores}
+    return {"recomendaciones": recomendaciones}
+
+
+def validar_recomendaciones(estado: EstadoRecomendacion) -> EstadoRecomendacion:
+    """Deja solo recomendaciones de vacantes enviadas, sin repetir y con motivo."""
+    if estado.get("errores"):
+        return {}
+
+    vacantes = {v["Id_vacante"]: v for v in estado["vacantes"]}
+    validas, vistas = [], set()
+    for r in estado.get("recomendaciones", []):
+        if not isinstance(r, dict):
+            continue
+        try:
+            id_vacante = int(r.get("id_vacante"))
+        except (TypeError, ValueError):
+            continue
+        motivo = str(r.get("motivo") or "").strip()
+        if id_vacante not in vacantes or id_vacante in vistas or not motivo:
+            continue
+        vistas.add(id_vacante)
+        validas.append(
+            {
+                "vacante": vacantes[id_vacante],
+                "motivo": motivo,
+                "seguro": r.get("seguro") is True,
+            }
+        )
+    return {"recomendaciones": validas[:5]}
+
+
+def construir_grafo_recomendacion():
+    g = StateGraph(EstadoRecomendacion)
+    g.add_node("recomendar", recomendar)
+    g.add_node("validar_recomendaciones", validar_recomendaciones)
+    g.set_entry_point("recomendar")
+    g.add_edge("recomendar", "validar_recomendaciones")
+    g.add_edge("validar_recomendaciones", END)
+    return g.compile()
+
+
+grafo_recomendacion = construir_grafo_recomendacion()
+
+
+def recomendar_vacantes(perfil, preferencias, vacantes) -> EstadoRecomendacion:
+    """Punto de entrada usado por la interfaz de recomendaciones."""
+    return grafo_recomendacion.invoke(
+        {"perfil": perfil, "preferencias": preferencias, "vacantes": vacantes, "errores": []}
+    )
+
+
 if __name__ == "__main__":
     import sys
 

@@ -114,3 +114,55 @@ USER_EXTRACCION_LINKEDIN = """Texto del perfil de LinkedIn:
 </perfil_linkedin>
 
 Devuelve el JSON."""
+
+
+# --------------------------------------------------------------------------
+# Agente de recomendación de vacantes (historia #11)
+# --------------------------------------------------------------------------
+ESQUEMA_RECOMENDACION = """{
+  "recomendaciones": [
+    {
+      "id_vacante": number,
+      "motivo": string,
+      "seguro": boolean
+    }
+  ]
+}"""
+
+SYSTEM_RECOMENDACION = f"""Eres el agente de recomendación de vacantes de Progent.
+
+Recibes el perfil profesional de un usuario (sin datos personales), sus preferencias
+y una lista de vacantes candidatas. Tu tarea es elegir las vacantes que mejor encajan
+con el perfil y explicar por qué.
+
+Reglas:
+- Recomienda como máximo 5 vacantes, de la más a la menos relevante.
+- Usa solo vacantes de la lista recibida y copia su "id_vacante" exactamente.
+- "motivo" es obligatorio: una o dos frases en español que relacionen datos concretos
+  del perfil (experiencia, educación, habilidades) con la vacante.
+- "seguro" es true solo si la relación entre el perfil y la vacante es clara. Si la
+  coincidencia es parcial o dudosa, pon false y explica en "motivo" qué encaja y qué no.
+- Si el usuario indicó cargo deseado o modalidad, tenlos en cuenta. La modalidad no es
+  un campo de la vacante: dedúcela de la descripción solo si la menciona.
+- Si ninguna vacante encaja, devuelve una lista vacía.
+- No inventes datos del usuario ni de las vacantes.
+
+Responde únicamente con un JSON válido con esta forma, sin texto adicional:
+{ESQUEMA_RECOMENDACION}"""
+
+USER_RECOMENDACION = """Perfil del usuario:
+<perfil>
+{perfil}
+</perfil>
+
+Preferencias del usuario:
+<preferencias>
+{preferencias}
+</preferencias>
+
+Vacantes candidatas:
+<vacantes>
+{vacantes}
+</vacantes>
+
+Devuelve el JSON."""
