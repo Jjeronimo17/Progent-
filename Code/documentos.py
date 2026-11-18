@@ -135,3 +135,35 @@ def guardarCvPerfil(correo, nombre_archivo, datos):
         if "conexion" in locals() and conexion.is_connected():
             cursor.close()
             conexion.close()
+
+
+def guardarCvGenerado(correo, nombre_archivo, datos):
+    """Guarda en el perfil el CV que el usuario confirmó (historia #7).
+
+    Reemplaza la hoja de vida que tuviera: desde ahí es la que se usa al postularse.
+    Las postulaciones anteriores no cambian, porque cada una guardó su copia (#20).
+    Retorna (True, mensaje) o (False, mensaje).
+    """
+    valido, tipo = validarDocumento(nombre_archivo, datos, max_bytes=5 * 1024 * 1024)
+    if not valido:
+        return False, tipo
+    try:
+        conexion = conectar()
+        if conexion.is_connected():
+            cursor = conexion.cursor()
+            cursor.execute(
+                "INSERT INTO archivos_usuarios(Correos_usuarios, nombre_archivo, tipo, archivo_bytes) "
+                "VALUES (%s, %s, %s, %s) ON DUPLICATE KEY UPDATE nombre_archivo = VALUES(nombre_archivo), "
+                "tipo = VALUES(tipo), archivo_bytes = VALUES(archivo_bytes)",
+                (correo, nombre_archivo, tipo, datos),
+            )
+            conexion.commit()
+            return True, f"Guardaste «{nombre_archivo}» como tu hoja de vida: es la que se usará al postularte."
+        return False, "No se pudo conectar a la base de datos, intente de nuevo"
+    except Error as e:
+        print(f"Fallo en las operaciones de arriba {e}")
+        return False, "No se pudo guardar el CV, intente de nuevo"
+    finally:
+        if "conexion" in locals() and conexion.is_connected():
+            cursor.close()
+            conexion.close()
