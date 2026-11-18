@@ -36,7 +36,7 @@ CREATE TABLE IF NOT EXISTS `Progent_Usuarios`.`informacion_usuarios` (
   `Telefono` VARCHAR(50) NULL,
   `Correo_contacto` VARCHAR(200) NOT NULL,
   `Ubicacion` VARCHAR(100) NOT NULL,
-  `Ocupacion` LONGTEXT NOT NULL,
+  `Ocupacion` LONGTEXT NULL,
   PRIMARY KEY (`Correos`),
   CONSTRAINT `Correos`
     FOREIGN KEY (`Correos`)
