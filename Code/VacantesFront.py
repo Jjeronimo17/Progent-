@@ -1,6 +1,8 @@
 import streamlit as st
 
+from alertas import guardarAlerta
 from guardadas import estaGuardada, guardarVacante, quitarVacanteGuardada
+from NotificacionesFront import describir_alerta
 from postulaciones import consultarPostulacion, registrarPostulacion
 from vacantes import consultarUbicaciones, consultarVacante, consultarVacantes
 
@@ -80,6 +82,35 @@ def mostrar_filtros():
     )
 
 
+def crear_alerta(palabra_clave, ubicacion, salario_minimo, modalidad):
+    # Se ejecuta con on_click: guarda la alerta con los filtros que se ven en pantalla.
+    exito, mensaje = guardarAlerta(
+        st.session_state["usuario_logueado"], palabra_clave, ubicacion, salario_minimo, modalidad
+    )
+    if exito:
+        criterios = describir_alerta(palabra_clave, ubicacion, salario_minimo, modalidad)
+        mensaje = f"{mensaje} Criterios: {criterios}."
+    st.session_state["mensaje_alerta"] = (exito, mensaje)
+
+
+def boton_crear_alerta(palabra_clave, ubicacion, salario_minimo, modalidad):
+    mensaje = st.session_state.pop("mensaje_alerta", None)
+    if mensaje:
+        exito, texto = mensaje
+        (st.success if exito else st.error)(texto)
+    hay_criterios = bool(palabra_clave or ubicacion or salario_minimo or modalidad)
+    st.button(
+        "Crear alerta con estos filtros",
+        disabled=not hay_criterios,
+        help="Te avisaremos en Notificaciones cuando se publique una vacante nueva que "
+        "cumpla la búsqueda y los filtros actuales."
+        if hay_criterios
+        else "Escribe una palabra clave o elige al menos un filtro.",
+        on_click=crear_alerta,
+        args=(palabra_clave, ubicacion, salario_minimo, modalidad),
+    )
+
+
 def mostrar_listado_vacantes():
     st.title("Vacantes disponibles")
 
@@ -91,6 +122,7 @@ def mostrar_listado_vacantes():
 
     ubicacion, salario_minimo, modalidad = mostrar_filtros()
     hay_filtros = bool(ubicacion or salario_minimo or modalidad)
+    boton_crear_alerta(palabra_clave, ubicacion, salario_minimo, modalidad)
 
     exito, resultado = consultarVacantes(palabra_clave, ubicacion, salario_minimo, modalidad)
 
