@@ -341,6 +341,21 @@ CREATE TABLE IF NOT EXISTS `Progent_Usuarios`.`Historial_estados` (
     ON UPDATE CASCADE)
 ENGINE = InnoDB;
 
+-- -----------------------------------------------------
+-- Table `Progent_Usuarios`.`Entrevistas`
+-- -----------------------------------------------------
+CREATE TABLE IF NOT EXISTS `Progent_Usuarios`.`Entrevistas` (
+  `Id_postulacion_entrevista` INT NOT NULL,
+  `Fecha_entrevista` DATETIME NOT NULL,
+  `Fecha_registro` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (`Id_postulacion_entrevista`),
+  CONSTRAINT `Id_postulacion_entrevista`
+    FOREIGN KEY (`Id_postulacion_entrevista`)
+    REFERENCES `Progent_Usuarios`.`Postulaciones` (`Id_postulacion`)
+    ON DELETE CASCADE
+    ON UPDATE CASCADE)
+ENGINE = InnoDB;
+
 USE `Progent_Usuarios` ;
 
 -- -----------------------------------------------------
