@@ -575,6 +575,105 @@ def sugerir_mejoras_cv(perfil, vacantes) -> EstadoMejoras:
     return grafo_mejoras.invoke({"perfil": perfil, "vacantes": vacantes, "errores": []})
 
 
+# ==========================================================================
+# Agente que evalúa la compatibilidad con una vacante (historia #26)
+#
+# Flujo:  evaluar_compatibilidad  ->  calcular_compatibilidad  ->  END
+#
+# Recibe el perfil SIN datos personales (decisión 6). El agente solo juzga cada
+# requisito; el nivel lo calcula Progent, para que sea el mismo con los mismos datos.
+# ==========================================================================
+from prompts import NIVELES_CUMPLE, SYSTEM_COMPATIBILIDAD, USER_COMPATIBILIDAD
+
+PUNTOS_CUMPLE = {"si": 1.0, "parcial": 0.5, "no": 0.0}
+
+
+class EstadoCompatibilidad(TypedDict, total=False):
+    """Estado que viaja por el grafo de compatibilidad."""
+
+    perfil: dict[str, Any]
+    vacante: dict[str, Any]
+    criterios: list[dict[str, Any]]
+    informacion_suficiente: bool
+    porcentaje: int
+    nivel: str
+    aproximado: bool
+    errores: list[str]
+
+
+def evaluar_compatibilidad(estado: EstadoCompatibilidad) -> EstadoCompatibilidad:
+    errores = list(estado.get("errores", []))
+    v = estado["vacante"]
+    vacante = {
+        "cargo": v["Cargo"],
+        "descripcion": v["Descripcion"],
+        "requisitos": v["Requisitos"],
+        "modalidad": v.get("Modalidad"),
+    }
+    mensaje = USER_COMPATIBILIDAD.format(
+        perfil=json.dumps(estado["perfil"], ensure_ascii=False, indent=2),
+        vacante=json.dumps(vacante, ensure_ascii=False, indent=2),
+    )
+    datos, error = pedir_json_modelo(SYSTEM_COMPATIBILIDAD, mensaje, 2000)
+    if error:
+        return {"errores": errores + [error]}
+    criterios = datos.get("criterios")
+    if not isinstance(criterios, list):
+        return {"errores": errores + ["El agente devolvió una respuesta incompleta. Intenta de nuevo."]}
+    return {"criterios": criterios, "informacion_suficiente": datos.get("informacion_suficiente") is not False}
+
+
+def calcular_compatibilidad(estado: EstadoCompatibilidad) -> EstadoCompatibilidad:
+    """Normaliza los criterios y calcula el nivel: cumple = 1, parcial = 0,5, no = 0."""
+    if estado.get("errores"):
+        return {}
+    validos = []
+    for c in estado.get("criterios", []):
+        if not isinstance(c, dict):
+            continue
+        requisito = str(c.get("requisito") or "").strip()
+        cumple = str(c.get("cumple") or "").strip().lower().replace("í", "i")
+        if not requisito or cumple not in NIVELES_CUMPLE:
+            continue
+        dato = str(c.get("dato_perfil") or "").strip()
+        seguro = c.get("seguro") is True
+        if cumple != "no" and not dato:
+            # Sin el dato en que se basó no se puede explicar: queda como aproximado.
+            dato, seguro = "El agente no indicó en qué dato de tu perfil se basó.", False
+        validos.append({"requisito": requisito, "cumple": cumple, "dato_perfil": dato, "seguro": seguro})
+    validos = validos[:8]
+    if not validos:
+        return {"errores": ["El agente no pudo evaluar los requisitos de esta vacante. Intenta de nuevo."]}
+
+    # Redondeo convencional (62,5 -> 63); round() de Python redondea al par.
+    porcentaje = int(100 * sum(PUNTOS_CUMPLE[c["cumple"]] for c in validos) / len(validos) + 0.5)
+    nivel = "Alta" if porcentaje >= 70 else "Media" if porcentaje >= 40 else "Baja"
+    return {
+        "criterios": validos,
+        "porcentaje": porcentaje,
+        "nivel": nivel,
+        "aproximado": not all(c["seguro"] for c in validos),
+    }
+
+
+def construir_grafo_compatibilidad():
+    g = StateGraph(EstadoCompatibilidad)
+    g.add_node("evaluar_compatibilidad", evaluar_compatibilidad)
+    g.add_node("calcular_compatibilidad", calcular_compatibilidad)
+    g.set_entry_point("evaluar_compatibilidad")
+    g.add_edge("evaluar_compatibilidad", "calcular_compatibilidad")
+    g.add_edge("calcular_compatibilidad", END)
+    return g.compile()
+
+
+grafo_compatibilidad = construir_grafo_compatibilidad()
+
+
+def evaluar_compatibilidad_vacante(perfil, vacante) -> EstadoCompatibilidad:
+    """Punto de entrada usado por compatibilidad.py."""
+    return grafo_compatibilidad.invoke({"perfil": perfil, "vacante": vacante, "errores": []})
+
+
 if __name__ == "__main__":
     import sys
 
