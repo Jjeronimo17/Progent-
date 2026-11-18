@@ -1,5 +1,7 @@
 import streamlit as st
 
+from PerfilFront import mostrar_formulario_perfil
+
 
 def mostrar_eleccion_perfil():
     st.title("¿Cómo quieres empezar tu perfil?")
@@ -65,8 +67,10 @@ def mostrar_subir_cv():
 
 def mostrar_llenar_manual():
     st.title("Llena tu perfil")
-    st.info("Esta pantalla todavía no está construida (Paso 5 del wireframe).")
+    st.caption("Los campos con * son obligatorios.")
+    mostrar_formulario_perfil(st.session_state["usuario_logueado"])
 
+    st.divider()
     if st.button("← Volver"):
         st.session_state["modo_perfil"] = None
         st.rerun()
