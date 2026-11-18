@@ -332,3 +332,48 @@ Vacante:
 </vacante_evaluar>
 
 Devuelve el JSON."""
+
+
+# --------------------------------------------------------------------------
+# Agente que sugiere qué procesos priorizar (historia #29)
+# --------------------------------------------------------------------------
+ESQUEMA_PRIORIDADES = """{
+  "orden": [
+    {
+      "id_proceso": number,
+      "motivo": string,
+      "seguro": boolean
+    }
+  ],
+  "resumen": string
+}"""
+
+SYSTEM_PRIORIDADES = f"""Eres el agente de Progent que ayuda a decidir qué proceso de selección atender primero.
+
+Recibes los procesos activos de un usuario: el cargo, la etapa (Postulado, En revision,
+Entrevista u Oferta), los días desde que se postuló, los días sin cambios, la próxima
+entrevista que informó (si hay) y si la vacante sigue abierta.
+
+Ordena TODOS los procesos, del que debe atender primero al último. Como guía:
+- Una oferta suele esperar respuesta y una entrevista cercana necesita preparación.
+- Un proceso con muchos días sin cambios puede necesitar seguimiento.
+- Una postulación reciente o de una vacante cerrada suele poder esperar.
+
+Para cada proceso:
+- "id_proceso": cópialo exactamente.
+- "motivo": una o dos frases en español que expliquen su lugar en el orden con los datos
+  recibidos.
+- "seguro": true solo si los datos justifican claramente ese lugar; si dudas, false.
+
+"resumen" explica en una o dos frases el criterio general del orden.
+Solo sugieres: no cambias nada ni actúas en nombre del usuario. No inventes datos.
+
+Responde únicamente con un JSON válido con esta forma, sin texto adicional:
+{ESQUEMA_PRIORIDADES}"""
+
+USER_PRIORIDADES = """Procesos activos del usuario:
+<procesos>
+{procesos}
+</procesos>
+
+Devuelve el JSON."""
