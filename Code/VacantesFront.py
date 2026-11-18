@@ -1,13 +1,25 @@
 import streamlit as st
 
 from postulaciones import consultarPostulacion, registrarPostulacion
-from vacantes import consultarVacante, consultarVacantes
+from vacantes import consultarUbicaciones, consultarVacante, consultarVacantes
+
+MODALIDADES = {"Hibrido": "Híbrido", "Presencial": "Presencial", "Virtual": "Virtual"}
 
 
 def boton_volver_listado():
     if st.button("← Volver"):
         st.session_state["vacante_seleccionada"] = None
         st.rerun()
+
+
+def texto_salario_modalidad(vacante):
+    """Ej.: "$6.500.000 al mes · Híbrido". Los nombres de la base van sin tilde."""
+    if vacante["Salario"] is None:
+        salario = "Salario no publicado"
+    else:
+        salario = f"${vacante['Salario']:,.0f} al mes".replace(",", ".")
+    modalidad = MODALIDADES.get(vacante["Modalidad"], "Modalidad no indicada")
+    return f"{salario} · {modalidad}"
 
 
 def seleccionar_vacante(id_vacante):
@@ -18,6 +30,7 @@ def mostrar_tarjeta_vacante(vacante):
     with st.container(border=True):
         st.subheader(vacante["Cargo"])
         st.write(f"**{vacante['Empresa']}** · {vacante['Ubicacion']}")
+        st.caption(texto_salario_modalidad(vacante))
 
         with st.expander("Ver descripción y requisitos"):
             st.markdown("**Descripción**")
@@ -36,6 +49,36 @@ def mostrar_tarjeta_vacante(vacante):
         )
 
 
+def mostrar_filtros():
+    """Dibuja los filtros y devuelve (ubicación, salario mínimo, modalidad); None = sin filtro."""
+    exito, ubicaciones = consultarUbicaciones()
+    if not exito:
+        st.error(ubicaciones)
+        ubicaciones = []
+
+    columna1, columna2, columna3 = st.columns(3)
+    ubicacion = columna1.selectbox("Ubicación", ["Todas"] + ubicaciones, key="filtro_ubicacion")
+    salario_minimo = columna2.number_input(
+        "Salario mínimo (COP al mes)",
+        min_value=0,
+        step=500000,
+        value=None,
+        placeholder="Sin mínimo",
+        key="filtro_salario",
+    )
+    modalidad = columna3.selectbox(
+        "Modalidad",
+        ["Todas"] + list(MODALIDADES),
+        format_func=lambda m: MODALIDADES.get(m, m),
+        key="filtro_modalidad",
+    )
+    return (
+        None if ubicacion == "Todas" else ubicacion,
+        salario_minimo or None,
+        None if modalidad == "Todas" else modalidad,
+    )
+
+
 def mostrar_listado_vacantes():
     st.title("Vacantes disponibles")
 
@@ -45,21 +88,35 @@ def mostrar_listado_vacantes():
         help="Busca en el cargo y en la descripción. Borra el texto para ver todas.",
     ).strip()
 
-    exito, resultado = consultarVacantes(palabra_clave)
+    ubicacion, salario_minimo, modalidad = mostrar_filtros()
+    hay_filtros = bool(ubicacion or salario_minimo or modalidad)
+
+    exito, resultado = consultarVacantes(palabra_clave, ubicacion, salario_minimo, modalidad)
 
     if not exito:
         st.error(resultado)
         return
 
     if not resultado:
-        if palabra_clave:
+        if hay_filtros:
+            con_palabra = f" con «{palabra_clave}»" if palabra_clave else ""
+            st.info(
+                f"Sin resultados: ninguna vacante{con_palabra} cumple los filtros "
+                "seleccionados. Prueba quitando alguno."
+            )
+        elif palabra_clave:
             st.info(f"Sin resultados para «{palabra_clave}». Prueba con otra palabra.")
         else:
             st.info("Por ahora no hay vacantes disponibles. Vuelve a revisar más tarde.")
         return
 
     cantidad = len(resultado)
-    if palabra_clave:
+    if hay_filtros:
+        verbo = "vacante cumple" if cantidad == 1 else "vacantes cumplen"
+        coincide = "coincide" if cantidad == 1 else "coinciden"
+        con_palabra = f" y {coincide} con «{palabra_clave}»" if palabra_clave else ""
+        st.caption(f"{cantidad} {verbo} los filtros{con_palabra}")
+    elif palabra_clave:
         verbo = "vacante coincide" if cantidad == 1 else "vacantes coinciden"
         st.caption(f"{cantidad} {verbo} con «{palabra_clave}»")
     else:
@@ -145,6 +202,7 @@ def mostrar_detalle_vacante(id_vacante):
         f"{vacante['Ubicacion']} · Publicada el "
         f"{vacante['Fecha_publicacion']:%d/%m/%Y}"
     )
+    st.write(texto_salario_modalidad(vacante))
 
     st.subheader("Descripción")
     st.write(vacante["Descripcion"])
