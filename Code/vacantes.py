@@ -7,13 +7,22 @@ from mysql.connector import Error
 load_dotenv()
 
 
-def consultarVacantes():
+def escaparComodines(texto):
+    """Escapa los comodines de LIKE para buscar el texto tal como se escribió."""
+    return texto.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
+
+
+def consultarVacantes(palabra_clave=None):
     """Devuelve las vacantes abiertas, de la más reciente a la más antigua.
+
+    Si llega una palabra clave, solo devuelve las vacantes cuyo cargo o
+    descripción la contienen (sin distinguir mayúsculas ni tildes).
 
     Retorna (True, lista) donde cada elemento es un diccionario con las
     columnas de la tabla Vacantes, o (False, mensaje) si falla la consulta.
-    Una lista vacía significa que no hay vacantes disponibles.
+    Una lista vacía significa que no hay vacantes que mostrar.
     """
+    palabra_clave = (palabra_clave or "").strip()
     try:
         conexion = mysql.connector.connect(
             host=os.getenv("DB_HOST"),
@@ -26,11 +35,15 @@ def consultarVacantes():
             cursor = conexion.cursor(dictionary=True)
             consultaVacantes = (
                 "SELECT Id_vacante, Cargo, Empresa, Ubicacion, Descripcion, "
-                "Requisitos, Fecha_publicacion FROM Vacantes "
-                "WHERE Estado = %s ORDER BY Fecha_publicacion DESC, Id_vacante DESC"
+                "Requisitos, Fecha_publicacion FROM Vacantes WHERE Estado = %s"
             )
-            parametro = ("Abierta",)
-            cursor.execute(consultaVacantes, parametro)
+            parametros = ("Abierta",)
+            if palabra_clave:
+                consultaVacantes += " AND (Cargo LIKE %s OR Descripcion LIKE %s)"
+                patron = f"%{escaparComodines(palabra_clave)}%"
+                parametros += (patron, patron)
+            consultaVacantes += " ORDER BY Fecha_publicacion DESC, Id_vacante DESC"
+            cursor.execute(consultaVacantes, parametros)
             resultado = cursor.fetchall()
             return True, resultado
         return False, "No se pudo conectar a la base de datos, intente de nuevo"
