@@ -157,6 +157,49 @@ CREATE TABLE IF NOT EXISTS `Progent_Usuarios`.`Postulaciones` (
     ON UPDATE CASCADE)
 ENGINE = InnoDB;
 
+
+-- -----------------------------------------------------
+-- Table `Progent_Usuarios`.`Criterios_busqueda`
+-- -----------------------------------------------------
+CREATE TABLE IF NOT EXISTS `Progent_Usuarios`.`Criterios_busqueda` (
+  `Correos_criterios` VARCHAR(200) NOT NULL,
+  `Cargo_deseado` VARCHAR(150) NULL,
+  `Modalidad` ENUM('Hibrido', 'Presencial', 'Virtual') NULL,
+  `Ciudad` VARCHAR(100) NULL,
+  PRIMARY KEY (`Correos_criterios`),
+  CONSTRAINT `Correos_criterios`
+    FOREIGN KEY (`Correos_criterios`)
+    REFERENCES `Progent_Usuarios`.`Usuarios` (`Correos`)
+    ON DELETE CASCADE
+    ON UPDATE CASCADE)
+ENGINE = InnoDB;
+
+
+-- -----------------------------------------------------
+-- Table `Progent_Usuarios`.`Recomendaciones`
+-- -----------------------------------------------------
+CREATE TABLE IF NOT EXISTS `Progent_Usuarios`.`Recomendaciones` (
+  `Id_recomendacion` INT NOT NULL AUTO_INCREMENT,
+  `Correos_recomendacion` VARCHAR(200) NOT NULL,
+  `Id_vacante_recomendacion` INT NOT NULL,
+  `Decision` ENUM('Interesa', 'Descartada') NOT NULL,
+  `Motivo` LONGTEXT NULL,
+  `Fecha_decision` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (`Id_recomendacion`),
+  UNIQUE INDEX `Usuario_vacante_recomendacion_UNIQUE` (`Correos_recomendacion` ASC, `Id_vacante_recomendacion` ASC) VISIBLE,
+  INDEX `Id_vacante_recomendacion_idx` (`Id_vacante_recomendacion` ASC) VISIBLE,
+  CONSTRAINT `Correos_recomendacion`
+    FOREIGN KEY (`Correos_recomendacion`)
+    REFERENCES `Progent_Usuarios`.`Usuarios` (`Correos`)
+    ON DELETE CASCADE
+    ON UPDATE CASCADE,
+  CONSTRAINT `Id_vacante_recomendacion`
+    FOREIGN KEY (`Id_vacante_recomendacion`)
+    REFERENCES `Progent_Usuarios`.`Vacantes` (`Id_vacante`)
+    ON DELETE CASCADE
+    ON UPDATE CASCADE)
+ENGINE = InnoDB;
+
 USE `Progent_Usuarios` ;
 
 -- -----------------------------------------------------
