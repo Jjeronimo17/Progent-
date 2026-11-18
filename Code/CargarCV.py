@@ -1,5 +1,6 @@
 import streamlit as st
 
+from GenerarCvFront import mostrar_generar_cv
 from MejorasCvFront import mostrar_mejorar_cv
 from PerfilFront import mostrar_formulario_perfil
 
@@ -19,6 +20,11 @@ def mostrar_eleccion_perfil():
             "mejorar",
             "Mejorar mi hoja de vida",
             "El agente compara tu perfil con las vacantes que te interesan y te sugiere mejoras.",
+        ),
+        (
+            "generar",
+            "Generar mi CV",
+            "El agente redacta tu CV a partir de tu perfil, listo para descargar o para postularte.",
         ),
     ]
 
@@ -91,6 +97,15 @@ def mostrar_pantalla_mejorar():
         st.rerun()
 
 
+def mostrar_pantalla_generar():
+    mostrar_generar_cv()
+
+    st.divider()
+    if st.button("← Volver"):
+        st.session_state["modo_perfil"] = None
+        st.rerun()
+
+
 def mostrar_pantalla_perfil():
     modo = st.session_state["modo_perfil"]
 
@@ -104,3 +119,5 @@ def mostrar_pantalla_perfil():
         mostrar_llenar_manual()
     elif modo == "mejorar":
         mostrar_pantalla_mejorar()
+    elif modo == "generar":
+        mostrar_pantalla_generar()
