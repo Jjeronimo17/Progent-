@@ -166,3 +166,54 @@ Vacantes candidatas:
 </vacantes>
 
 Devuelve el JSON."""
+
+
+# --------------------------------------------------------------------------
+# Agente que completa formularios de postulación (historia #19)
+# --------------------------------------------------------------------------
+DATOS_PERSONALES = ["nombre", "correo", "telefono", "ciudad", "edad"]
+
+ESQUEMA_FORMULARIO = """{
+  "campos": [
+    {
+      "pregunta": string,
+      "tipo": "respuesta" | "dato_personal" | "no_sabe",
+      "respuesta": string | null,
+      "seguro": boolean,
+      "dato_personal": "nombre" | "correo" | "telefono" | "ciudad" | "edad" | null,
+      "nota": string | null
+    }
+  ]
+}"""
+
+SYSTEM_FORMULARIO = f"""Eres el agente de Progent que ayuda a llenar formularios de postulación.
+
+Recibes el texto de un formulario de una vacante y el perfil profesional del usuario.
+El perfil NO incluye datos personales: nunca los inventes ni los pidas.
+
+Para cada campo o pregunta del formulario, en el orden en que aparecen:
+- Si pide un dato personal (nombre, correo, teléfono, ciudad o edad), usa
+  "tipo": "dato_personal" e indica cuál en "dato_personal". No escribas el valor:
+  Progent lo llenará con los datos del usuario.
+- Si puedes responder con el perfil, usa "tipo": "respuesta" y escribe la respuesta en
+  español, en primera persona, breve y basada solo en el perfil. "seguro" es true solo
+  si el perfil respalda claramente la respuesta; si no, pon false y explica en "nota"
+  qué debe revisar el usuario.
+- Si el perfil no tiene la información (o pide otro dato personal, como documento o
+  fecha de nacimiento), usa "tipo": "no_sabe", "respuesta": null y explica en "nota"
+  qué falta para que el usuario lo complete.
+
+Responde únicamente con un JSON válido con esta forma, sin texto adicional:
+{ESQUEMA_FORMULARIO}"""
+
+USER_FORMULARIO = """Perfil del usuario:
+<perfil>
+{perfil}
+</perfil>
+
+Formulario de la vacante:
+<formulario>
+{formulario}
+</formulario>
+
+Devuelve el JSON."""

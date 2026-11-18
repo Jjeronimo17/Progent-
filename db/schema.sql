@@ -286,6 +286,25 @@ CREATE TABLE IF NOT EXISTS `Progent_Usuarios`.`Cartas_presentacion` (
     ON UPDATE CASCADE)
 ENGINE = InnoDB;
 
+-- -----------------------------------------------------
+-- Table `Progent_Usuarios`.`Respuestas_formulario`
+-- -----------------------------------------------------
+CREATE TABLE IF NOT EXISTS `Progent_Usuarios`.`Respuestas_formulario` (
+  `Id_respuesta` INT NOT NULL AUTO_INCREMENT,
+  `Id_postulacion_respuesta` INT NOT NULL,
+  `Orden` INT NOT NULL,
+  `Pregunta` LONGTEXT NOT NULL,
+  `Respuesta` LONGTEXT NOT NULL,
+  `Fecha_confirmacion` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (`Id_respuesta`),
+  INDEX `Id_postulacion_respuesta_idx` (`Id_postulacion_respuesta` ASC) VISIBLE,
+  CONSTRAINT `Id_postulacion_respuesta`
+    FOREIGN KEY (`Id_postulacion_respuesta`)
+    REFERENCES `Progent_Usuarios`.`Postulaciones` (`Id_postulacion`)
+    ON DELETE CASCADE
+    ON UPDATE CASCADE)
+ENGINE = InnoDB;
+
 USE `Progent_Usuarios` ;
 
 -- -----------------------------------------------------
